@@ -1,0 +1,32 @@
+# Quantum ESPRESSO run outputs (large / regenerable)
+**/out/
+**/out6/
+**/out_*/
+**/*.save/
+*.hdf5
+*.wfc*
+*.mix*
+charge-density*
+data-file*.xml
+*.dyn*
+*.restart*
+*.lanczos*
+*.beta*
+*.igk*
+
+# turboEELS scratch
+**/*.beta_gamma_z.*
+
+# logs and scratch
+*.log
+*.tmp
+scratch/
+tmp/
+
+# python
+__pycache__/
+*.pyc
+
+# editor / OS
+.DS_Store
+*.swp

@@ -1,0 +1,13 @@
+&lr_input
+  prefix = 'mgo'
+  outdir = './out'
+  restart_step = 250
+  restart = .false.
+/
+&lr_control
+  itermax = 300
+  q1 = 0.5
+  q2 = 0.0
+  q3 = 0.0
+  approximation = 'TDDFT'
+/

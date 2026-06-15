@@ -1,0 +1,13 @@
+&lr_input
+  prefix = 'mgo'
+  outdir = './out'
+  eels = .true.
+  itermax0 = 300
+  itermax  = 6000
+  extrapolation = "osc"
+  epsil = 0.02
+  units = 1
+  start = 0.0
+  end   = 40.0
+  increment = 0.01
+/

@@ -1,0 +1,318 @@
+--- a/Modules/input_parameters.f90
++++ b/Modules/input_parameters.f90
+@@ -483,6 +483,16 @@
+         REAL(DP) :: gau_parameter = -1.0_DP
+         !! gau-pbe
+           !
++        LOGICAL  :: lmodelhf = .FALSE.
++        !! DD-RSH-CAM (VASP LMODELHF) range-separated hybrid (hand-added).
++        !! Use together with input_dft='hse'.
++        REAL(DP) :: aexx = -1.0_DP
++        !! DD-RSH-CAM long-range Fock fraction (AEXX = 1/eps_inf)
++        REAL(DP) :: bexx = 1.0_DP
++        !! DD-RSH-CAM short-range Fock fraction (BEXX, usually 1.0)
++        REAL(DP) :: hfscreen = -1.0_DP
++        !! DD-RSH-CAM screening parameter mu (bohr^-1)
++          !
+         CHARACTER(len=80) :: exxdiv_treatment = 'gygi-baldereschi'
+         !! define how ro cure the Coulomb divergence in EXX.
+         CHARACTER(len=80) :: exxdiv_treatment_allowed(6)
+@@ -694,6 +704,7 @@
+              scdmden, scdmgrd, nscdm, n_proj,                                 &
+              exxdiv_treatment, x_gamma_extrapolation, yukawa, ecutvcut,       &
+              exx_fraction, screening_parameter, ref_alat,                     &
++             lmodelhf, aexx, bexx, hfscreen,                                  &
+              noncolin, lspinorb, starting_spin_angle, lambda, angle1, angle2, &
+              report, lforcet,                                                 &
+              constrained_magnetization, B_field, fixed_magnetization,         &
+--- a/Modules/read_namelists.f90
++++ b/Modules/read_namelists.f90
+@@ -986,6 +986,10 @@
+        CALL mp_bcast( exx_fraction,           ionode_id, intra_image_comm )
+        CALL mp_bcast( screening_parameter,    ionode_id, intra_image_comm ) 
+        CALL mp_bcast( gau_parameter,          ionode_id, intra_image_comm )
++       CALL mp_bcast( lmodelhf,               ionode_id, intra_image_comm )
++       CALL mp_bcast( aexx,                   ionode_id, intra_image_comm )
++       CALL mp_bcast( bexx,                   ionode_id, intra_image_comm )
++       CALL mp_bcast( hfscreen,               ionode_id, intra_image_comm )
+        CALL mp_bcast( exxdiv_treatment,       ionode_id, intra_image_comm )
+        CALL mp_bcast( x_gamma_extrapolation,  ionode_id, intra_image_comm )
+        CALL mp_bcast( yukawa,                 ionode_id, intra_image_comm )
+--- a/PW/src/input.f90
++++ b/PW/src/input.f90
+@@ -2113,17 +2113,23 @@
+                               exxdiv_treatment, yukawa, ecutvcut,          &
+                               gau_parameter, localization_thr, scdm, ace,  &
+                               scdmden, scdmgrd, nscdm, n_proj,             & 
+-                              exx_fraction, screening_parameter, ecutfock 
++                              exx_fraction, screening_parameter, ecutfock, &
++                              lmodelhf, aexx, bexx, hfscreen
+   USE io_global,     ONLY : stdout
+   USE klist,         ONLY : tot_charge
+   USE ions_base,     ONLY : nat, ityp, zv
+   USE xc_lib,        ONLY:  xclib_dft_is
+-  USE xc_lib,        ONLY : xclib_set_exx_fraction, set_screening_parameter
++  USE xc_lib,        ONLY : xclib_set_exx_fraction, set_screening_parameter, &
++                            xclib_set_modelhf
+   USE exx_base,      ONLY : x_gamma_extrapolation_ => x_gamma_extrapolation, &
+                             nq1, nq2, nq3, &
+                             exxdiv_treatment_ => exxdiv_treatment, &
+                             yukawa_           => yukawa, &
+-                            ecutvcut_         => ecutvcut
++                            ecutvcut_         => ecutvcut, &
++                            lmodelhf_         => lmodelhf, &
++                            aexx_modelhf_     => aexx_modelhf, &
++                            bexx_modelhf_     => bexx_modelhf, &
++                            modelhf_scrlen_   => modelhf_scrlen
+   USE exx,          ONLY :  ecutfock_         => ecutfock, &
+                             use_ace, nbndproj, local_thr 
+   USE loc_scdm,      ONLY : use_scdm, scdm_den, scdm_grd, n_scdm
+@@ -2174,6 +2180,29 @@
+   IF (screening_parameter >= 0.0_DP) &
+         & CALL set_screening_parameter(screening_parameter)
+   !
++  ! ... DD-RSH-CAM (LMODELHF) range-separated hybrid (hand-added).
++  ! Must be used with input_dft='hse' (igcx=12). The two Fock fractions and mu are
++  ! baked into the Fock kernel (exxalfa=1), and the semilocal complement becomes
++  ! (1-AEXX)*E_x^PBE - (BEXX-AEXX)*E_x^PBE,SR(mu).
++  IF (lmodelhf) THEN
++     IF (hfscreen <= 0.0_DP) CALL errore('exx_iosys', &
++        'lmodelhf requires hfscreen (mu) > 0', 1)
++     IF (aexx < 0.0_DP) CALL errore('exx_iosys', &
++        'lmodelhf requires aexx (= 1/eps_inf) >= 0', 1)
++     lmodelhf_       = .TRUE.
++     aexx_modelhf_   = aexx
++     bexx_modelhf_   = bexx
++     modelhf_scrlen_ = hfscreen
++     ! semilocal short-range PBE exchange uses mu = hfscreen
++     CALL set_screening_parameter(hfscreen)
++     ! Fock fractions are inside the kernel, so the global EXX scale is 1
++     CALL xclib_set_exx_fraction(1.0_DP)
++     CALL xclib_set_modelhf(.TRUE., aexx, bexx)
++     WRITE(stdout,'(5x,a)') 'DD-RSH-CAM (LMODELHF) enabled'
++     WRITE(stdout,'(5x,a,f8.4,a,f8.4,a,f8.4)') &
++        'AEXX =', aexx, '   BEXX =', bexx, '   mu(bohr^-1) =', hfscreen
++  ENDIF
++  !
+ END SUBROUTINE exx_iosys
+ 
+ SUBROUTINE set_wmass ( )
+--- a/PW/src/exx_base.f90
++++ b/PW/src/exx_base.f90
+@@ -85,6 +85,15 @@
+   REAL(DP) :: gau_scrlen = 0.d0
+   !! gau-pbe screening
+   !
++  LOGICAL  :: lmodelhf = .FALSE.
++  !! DD-RSH-CAM (VASP LMODELHF) range-separated hybrid, Fock side (hand-added)
++  REAL(DP) :: aexx_modelhf = 0.0_dp
++  !! DD-RSH-CAM long-range Fock fraction (AEXX = 1/eps_inf)
++  REAL(DP) :: bexx_modelhf = 1.0_dp
++  !! DD-RSH-CAM short-range Fock fraction (BEXX, usually 1.0)
++  REAL(DP) :: modelhf_scrlen = 0.0_dp
++  !! DD-RSH-CAM screening parameter mu (bohr^-1)
++  !
+   ! ... cutoff techniques
+   LOGICAL :: use_coulomb_vcut_ws = .FALSE.
+   LOGICAL :: use_coulomb_vcut_spheric = .FALSE.
+@@ -800,7 +809,21 @@
+       !
+       qq = qq_track(ig)
+       !
+-      IF(gau_scrlen > 0) THEN
++      IF (lmodelhf) THEN
++         ! DD-RSH-CAM (LMODELHF): V(q) = 4*pi*e2/q^2 * [ BEXX - (BEXX-AEXX)*exp(-q^2/4mu^2) ]
++         ! At q->0 the erfc (short-range) part is finite (e2*pi/mu^2); the bare (long-range,
++         ! AEXX) part carries the Coulomb divergence handled by exxdiv (computed bare here).
++         IF (qq > eps_qdiv) THEN
++            fac(ig) = e2*fpi/qq*( bexx_modelhf - (bexx_modelhf-aexx_modelhf)* &
++                      EXP(-qq/4._DP/modelhf_scrlen**2) ) * grid_factor_track(ig)
++         ELSE
++            ! exxdiv already carries the AEXX/(BEXX-AEXX) weights (set in exxinit).
++            fac(ig) = - exxdiv
++            IF (.NOT.x_gamma_extrapolation) fac(ig) = fac(ig) + &
++                      (bexx_modelhf-aexx_modelhf)*e2*pi/(modelhf_scrlen**2)
++         ENDIF
++         !
++      ELSEIF(gau_scrlen > 0) THEN
+          fac(ig) = e2*((pi/gau_scrlen)**(1.5_DP))*EXP(-qq/4._DP/gau_scrlen) * grid_factor_track(ig)
+          !
+       ELSEIF (qq > eps_qdiv) THEN
+--- a/PW/src/exx.f90
++++ b/PW/src/exx.f90
+@@ -364,7 +364,9 @@
+     USE mp_orthopools,        ONLY : intra_orthopool_comm
+     USE exx_base,             ONLY : nkqs, xkq_collect, index_xk, index_sym,  &
+                                      exx_set_symm, rir, working_pool, exxdiv, &
+-                                     erfc_scrlen, gau_scrlen, exx_divergence
++                                     erfc_scrlen, gau_scrlen, exx_divergence, &
++                                     lmodelhf, modelhf_scrlen, aexx_modelhf,  &
++                                     bexx_modelhf
+     USE exx_band,             ONLY : change_data_structure, nwordwfc_exx, &
+                                      transform_evc_to_exx, igk_exx, evc_exx
+ #if defined(__CUDA)
+@@ -453,10 +455,25 @@
+     !
+     IF (.NOT.exx_is_active()) THEN
+        !
+-       erfc_scrlen = get_screening_parameter()
+-       gau_scrlen = get_gau_parameter()
+-       exxdiv  = exx_divergence()
+-       exxalfa = xclib_get_exx_fraction()
++       IF (lmodelhf) THEN
++          ! DD-RSH-CAM: the two Fock fractions (AEXX/BEXX) and mu are baked into the
++          ! kernel (g2_convolution), so exxalfa = 1. The G=0 (exxdiv) correction is
++          ! linear in the kernel, V = AEXX*[bare] + (BEXX-AEXX)*[erfc(mu)], so
++          ! exxdiv = AEXX*exxdiv_bare + (BEXX-AEXX)*exxdiv_erfc. This makes the
++          ! AEXX=BEXX (PBE0) and AEXX=0 (HSE) limits reproduce native QE exactly.
++          gau_scrlen  = 0._dp
++          erfc_scrlen = 0._dp
++          exxdiv = aexx_modelhf * exx_divergence()
++          erfc_scrlen = modelhf_scrlen
++          exxdiv = exxdiv + (bexx_modelhf-aexx_modelhf) * exx_divergence()
++          erfc_scrlen = 0._dp   ! keep 0 so g2_convolution uses the lmodelhf branch
++          exxalfa = 1._dp
++       ELSE
++          erfc_scrlen = get_screening_parameter()
++          gau_scrlen = get_gau_parameter()
++          exxdiv  = exx_divergence()
++          exxalfa = xclib_get_exx_fraction()
++       ENDIF
+        !
+        CALL start_exx()
+     ENDIF
+--- a/XClib/dft_setting_params.f90
++++ b/XClib/dft_setting_params.f90
+@@ -69,6 +69,15 @@
+     REAL(DP) :: exx_fraction = 0.0_DP
+     !! Exact Exchange fraction parameter
+     !
++    LOGICAL  :: lmodelhf = .FALSE.
++    !! TRUE for the DD-RSH-CAM (VASP LMODELHF) range-separated hybrid (hand-added).
++    !! Built on top of the HSE setup (iexch=1, igcx=12); the semilocal exchange becomes
++    !! (1-aexx_modelhf)*E_x^PBE - (bexx_modelhf-aexx_modelhf)*E_x^PBE,SR(mu).
++    REAL(DP) :: aexx_modelhf = 0.0_DP
++    !! DD-RSH-CAM long-range Fock fraction (AEXX = 1/eps_inf)
++    REAL(DP) :: bexx_modelhf = 1.0_DP
++    !! DD-RSH-CAM short-range Fock fraction (BEXX, usually 1.0)
++    !
+     INTEGER  :: iexch = notset
+     !! LDA exchange index
+     INTEGER  :: icorr = notset
+--- a/XClib/dft_setting_routines.f90
++++ b/XClib/dft_setting_routines.f90
+@@ -22,7 +22,7 @@
+   PUBLIC :: xclib_set_dft_from_name, xclib_set_dft_IDs,           &
+             xclib_set_auxiliary_flags, xclib_set_threshold,       &
+             xclib_set_exx_fraction, xclib_set_finite_size_volume, &
+-            set_screening_parameter, set_gau_parameter
++            set_screening_parameter, set_gau_parameter, xclib_set_modelhf
+   PUBLIC :: xclib_get_name, xclib_get_ID,             & 
+             xclib_get_dft_short, xclib_get_dft_long,  &
+             xclib_get_exx_fraction, xclib_get_finite_size_cell_volume, &
+@@ -695,6 +695,22 @@
+     RETURN
+   END SUBROUTINE xclib_set_exx_fraction
+   !-----------------------------------------------------------------------
++  SUBROUTINE xclib_set_modelhf( lmodelhf_, aexx_, bexx_ )
++    !! Enable the DD-RSH-CAM (LMODELHF) semilocal exchange complement and set
++    !! its long-range (AEXX) and short-range (BEXX) Fock fractions (hand-added).
++    USE kind_l,             ONLY: DP
++    USE dft_setting_params, ONLY: lmodelhf, aexx_modelhf, bexx_modelhf
++    IMPLICIT NONE
++    LOGICAL,  INTENT(IN) :: lmodelhf_
++    REAL(DP), INTENT(IN) :: aexx_, bexx_
++    lmodelhf     = lmodelhf_
++    aexx_modelhf = aexx_
++    bexx_modelhf = bexx_
++    IF ( lmodelhf ) WRITE( stdout,'(5x,a,2f8.4)') &
++         'DD-RSH-CAM (LMODELHF) semilocal: AEXX, BEXX = ', aexx_modelhf, bexx_modelhf
++    RETURN
++  END SUBROUTINE xclib_set_modelhf
++  !-----------------------------------------------------------------------
+   SUBROUTINE dft_force_hybrid( request )
+     !! Impose hybrid condition.
+     USE dft_setting_params, ONLY: ishybrid
+--- a/XClib/qe_drivers_lda_lsda.f90
++++ b/XClib/qe_drivers_lda_lsda.f90
+@@ -54,7 +54,8 @@
+   !! Same for correlation.
+   !
+   USE dft_setting_params,   ONLY: iexch, icorr, rho_threshold_lda, exx_started, &
+-                                  exx_fraction, finite_size_cell_volume
++                                  exx_fraction, finite_size_cell_volume,        &
++                                  lmodelhf, aexx_modelhf
+   !
+   IMPLICIT NONE
+   !
+@@ -97,6 +98,7 @@
+ !$omp private( rho, rs, ex, ec, ec_, vx, vc, vc_ ) &
+ !$omp shared( rho_in, length, iexch, icorr, ex_out, ec_out, vx_out, vc_out, &
+ !$omp         finite_size_cell_volume, exx_fraction, exx_started, &
++!$omp         lmodelhf, aexx_modelhf, &
+ !$omp         rho_threshold_lda )
+ !$omp do
+ #endif
+@@ -120,6 +122,12 @@
+      CASE( 1 )                      ! 'sla'
+         !
+         CALL slater( rs, ex, vx )
++        ! DD-RSH-CAM (LMODELHF): scale the LDA exchange by (1-AEXX), since the
++        ! long-range AEXX fraction of the full exchange is replaced by Fock.
++        IF ( lmodelhf .AND. exx_started ) THEN
++           ex = (1.0_DP - aexx_modelhf) * ex
++           vx = (1.0_DP - aexx_modelhf) * vx
++        ENDIF
+         !
+      CASE( 2 )                      ! 'sl1'
+         !
+--- a/XClib/qe_drivers_gga.f90
++++ b/XClib/qe_drivers_gga.f90
+@@ -37,7 +37,8 @@
+   USE dft_setting_params,   ONLY: igcx, igcc, rho_threshold_gga,     &
+                                   grho_threshold_gga, exx_started,   &
+                                   exx_fraction, screening_parameter, &
+-                                  gau_parameter
++                                  gau_parameter,                     &
++                                  lmodelhf, aexx_modelhf, bexx_modelhf
+   USE exch_gga
+   USE corr_gga
+   USE beef_interface, ONLY: beefx, beeflocalcorr
+@@ -99,6 +100,7 @@
+ !$omp shared( rho_in, grho_in, length, igcx, exx_started, &
+ !$omp         grho_threshold_gga, rho_threshold_gga, gau_parameter, &
+ !$omp         screening_parameter, exx_fraction, igcc, v1x_out, v2x_out, &
++!$omp         lmodelhf, aexx_modelhf, bexx_modelhf, &
+ !$omp         v1c_out, v2c_out, sx_out, sc_out, err_out )
+ !$omp do
+ #endif
+@@ -177,9 +179,16 @@
+         !
+         IF (exx_started) THEN
+           CALL pbexsr( rho, grho, sxsr, v1xsr, v2xsr, screening_parameter, in_err )
+-          sx  = sx  - exx_fraction * sxsr
+-          v1x = v1x - exx_fraction * v1xsr
+-          v2x = v2x - exx_fraction * v2xsr
++          IF (lmodelhf) THEN
++            ! DD-RSH-CAM: (1-AEXX)*E_x^PBE - (BEXX-AEXX)*E_x^PBE,SR(mu)
++            sx  = (1.0_DP-aexx_modelhf)*sx  - (bexx_modelhf-aexx_modelhf)*sxsr
++            v1x = (1.0_DP-aexx_modelhf)*v1x - (bexx_modelhf-aexx_modelhf)*v1xsr
++            v2x = (1.0_DP-aexx_modelhf)*v2x - (bexx_modelhf-aexx_modelhf)*v2xsr
++          ELSE
++            sx  = sx  - exx_fraction * sxsr
++            v1x = v1x - exx_fraction * v1xsr
++            v2x = v2x - exx_fraction * v2xsr
++          ENDIF
+         ENDIF
+         !
+      CASE( 34, 35 ) ! ' AH series for GGA cross checks
+--- a/XClib/xc_lib.f90
++++ b/XClib/xc_lib.f90
+@@ -30,6 +30,7 @@
+             xclib_set_auxiliary_flags,         &
+             xclib_set_threshold,               &
+             xclib_set_exx_fraction,            &
++            xclib_set_modelhf,                 &
+             xclib_set_finite_size_volume,      &
+             set_screening_parameter,           &
+             set_gau_parameter

@@ -1,0 +1,30 @@
+&control
+  calculation = 'nscf'
+  prefix      = 'mgo'
+  outdir      = './out'
+  pseudo_dir  = '../../../pseudos'
+  verbosity   = 'high'
+/
+&system
+  ibrav       = 2
+  celldm(1)   = 7.9104
+  nat         = 2
+  ntyp        = 2
+  ecutwfc     = 80.0
+  ecutrho     = 320.0
+  occupations = 'fixed'
+  nbnd        = 40
+  nosym       = .true.
+  noinv       = .true.
+/
+&electrons
+  conv_thr    = 1.0d-10
+/
+ATOMIC_SPECIES
+Mg  24.305  Mg_ONCV_PBE-1.2.upf
+O   15.999  O_ONCV_PBE-1.2.upf
+ATOMIC_POSITIONS crystal
+Mg  0.0  0.0  0.0
+O   0.5  0.5  0.5
+K_POINTS automatic
+8 8 8 0 0 0

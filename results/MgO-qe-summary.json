@@ -1,0 +1,38 @@
+{
+  "pbe_out": "/home/footman/DDRSH/runs/MgO/01-pbe-scf/mgo.scf.out",
+  "ph_out": "/home/footman/DDRSH/runs/MgO/02-eps/mgo.ph.out",
+  "pbe_gap": {
+    "vbm_eV": 9.0027,
+    "cbm_eV": 13.9551,
+    "gap_eV": 4.952399999999999,
+    "method": "ho_lu_line",
+    "n_occurrences": 1
+  },
+  "epsilon": {
+    "tensor": [
+      [
+        3.217164871,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        3.217164871,
+        -0.0
+      ],
+      [
+        0.0,
+        -0.0,
+        3.217164871
+      ]
+    ],
+    "components": [
+      3.217164871,
+      3.217164871,
+      3.217164871
+    ],
+    "epsilon_inf": 3.217164871
+  },
+  "epsilon_inf": 3.217164871,
+  "exx_fraction": 0.3108326865726242
+}

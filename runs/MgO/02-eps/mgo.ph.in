@@ -1,0 +1,10 @@
+MgO electronic (clamped-ion) dielectric tensor via DFPT
+&inputph
+  prefix   = 'mgo'
+  outdir   = './out'
+  fildyn   = 'mgo.dyn'
+  epsil    = .true.
+  trans    = .false.
+  tr2_ph   = 1.0d-14
+/
+0.0 0.0 0.0

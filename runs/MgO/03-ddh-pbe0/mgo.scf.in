@@ -1,0 +1,38 @@
+&control
+  calculation = 'scf'
+  prefix      = 'mgo'
+  outdir      = './out'
+  pseudo_dir  = '../../../pseudos'
+  verbosity   = 'high'
+/
+&system
+  ibrav            = 2
+  celldm(1)        = 7.9104   ! a = 4.186 A (experimental)
+  nat              = 2
+  ntyp             = 2
+  ecutwfc          = 80.0
+  ecutrho          = 320.0
+  occupations      = 'fixed'
+  nbnd             = 16
+  input_dft        = 'pbe0'
+! Global dielectric-dependent hybrid (DDH): alpha = 1 / epsilon_inf.
+! Initial value from literature epsilon_inf = 2.81 -> 0.355872.
+! Replace with 1 / your QE epsilon_inf after the 02-eps step.
+  exx_fraction        = 0.313686
+  exxdiv_treatment = 'gygi-baldereschi'
+  nqx1 = 3
+  nqx2 = 3
+  nqx3 = 3
+/
+&electrons
+  conv_thr    = 1.0d-8
+  mixing_beta = 0.7
+/
+ATOMIC_SPECIES
+Mg  24.305  Mg_ONCV_PBE-1.2.upf
+O   15.999  O_ONCV_PBE-1.2.upf
+ATOMIC_POSITIONS crystal
+Mg  0.0  0.0  0.0
+O   0.5  0.5  0.5
+K_POINTS automatic
+6 6 6 0 0 0
