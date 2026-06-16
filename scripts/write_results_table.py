@@ -8,24 +8,7 @@ import json
 from pathlib import Path
 
 from extract_qe_summary import parse_pw_gap
-
-
-LITERATURE = {
-    "MgO": {
-        "structure_source": "rocksalt fcc primitive cell, a = 4.186 A experimental (celldm(1) = 7.9104 bohr)",
-        "epsilon_inf": 2.81,
-        "mu_bohr_inv": 0.63,
-        "pbe_gap_eV": 4.79,
-        "hse06_gap_eV": 6.47,
-        "ddh_gap_eV": 7.70,
-        "rs_ddh_gap_eV": 7.88,
-        "dd0_rsh_cam_gap_eV": 8.32,
-        "experimental_gap_eV": 7.83,
-        "zpr_correction_eV": 0.53,
-        "reference": "Chen et al., Phys. Rev. Materials 2, 073803 (2018); "
-        "Skone, Govoni, Galli, Phys. Rev. B 89, 195112 (2014) for global DDH",
-    }
-}
+from literature import LITERATURE
 
 
 def fmt(value: object, digits: int = 6) -> str:

@@ -1,0 +1,3 @@
+# Python dependencies for the analysis/reporting scripts in scripts/.
+# (Quantum ESPRESSO itself is built separately; see scripts/build_qe.sh.)
+numpy>=1.24

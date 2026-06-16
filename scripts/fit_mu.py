@@ -28,6 +28,28 @@ def best_A(q, y, mu):
     return A, float(np.sqrt(np.mean(resid**2)))
 
 
+def rmse_fixed_A(q, y, mu, A):
+    """RMSE of eps^-1 = 1 - A*exp(-q^2/4mu^2) for a fixed A."""
+    resid = (1.0 - A * np.exp(-(q**2) / (4.0 * mu**2))) - y
+    return float(np.sqrt(np.mean(resid**2)))
+
+
+def parabolic_vertex(mus, rmses, i):
+    """Sub-grid minimum via parabolic interpolation of the three points around i.
+
+    Returns the refined mu. Falls back to mus[i] when i is on the grid edge or the
+    fitted parabola is not convex (no interior minimum).
+    """
+    if i <= 0 or i >= len(mus) - 1:
+        return float(mus[i])
+    y0, y1, y2 = rmses[i - 1], rmses[i], rmses[i + 1]
+    denom = y0 - 2.0 * y1 + y2
+    if denom <= 0.0:
+        return float(mus[i])
+    dx = float(mus[1] - mus[0])
+    return float(mus[i]) + 0.5 * dx * (y0 - y2) / denom
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
@@ -41,30 +63,31 @@ def main():
     q = data[:, 1]
     y = data[:, 3]
 
-    mus = np.linspace(0.05, 5.0, 20000)
+    mu_lo, mu_hi = 0.05, 5.0
+    mus = np.linspace(mu_lo, mu_hi, 20000)
     if fix_eps is None:
-        rmses = []
-        As = []
-        for mu in mus:
-            A, r = best_A(q, y, mu)
-            As.append(A)
-            rmses.append(r)
-        rmses = np.array(rmses)
+        results = [best_A(q, y, mu) for mu in mus]
+        As = np.array([r[0] for r in results])
+        rmses = np.array([r[1] for r in results])
         i = int(np.argmin(rmses))
-        mu = float(mus[i])
-        A = As[i]
+        # Parabolic sub-grid refinement (the grid only quantizes mu to ~2.5e-4).
+        mu = parabolic_vertex(mus, rmses, i)
+        A, rmse = best_A(q, y, mu)
         eps_inf = 1.0 / (1.0 - A)
-        rmse = float(rmses[i])
     else:
         eps_inf = fix_eps
         A = 1.0 - 1.0 / eps_inf
-        rmses = np.array([
-            np.sqrt(np.mean(((1.0 - A * np.exp(-(q**2) / (4.0 * mu**2))) - y) ** 2))
-            for mu in mus
-        ])
+        rmses = np.array([rmse_fixed_A(q, y, mu, A) for mu in mus])
         i = int(np.argmin(rmses))
-        mu = float(mus[i])
-        rmse = float(rmses[i])
+        mu = parabolic_vertex(mus, rmses, i)
+        rmse = rmse_fixed_A(q, y, mu, A)
+
+    if i == 0 or i == len(mus) - 1:
+        print(
+            f"WARNING: best mu hit the scan boundary [{mu_lo}, {mu_hi}] bohr^-1 "
+            "(index {0}); widen the range — the result is not a true minimum.".format(i),
+            file=sys.stderr,
+        )
 
     pred = 1.0 - A * np.exp(-(q**2) / (4.0 * mu**2))
     print(f"eps_inf        = {eps_inf:.4f}")

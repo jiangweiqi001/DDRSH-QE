@@ -11,11 +11,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 from extract_qe_summary import parse_pw_gap  # noqa: E402
+from literature import LITERATURE as _LIT  # noqa: E402
 
+_MGO = _LIT["MgO"]
 LITERATURE = {
-    "pbe_gap_eV": 4.79,
-    "dd0_rsh_cam_gap_eV": 8.32,
-    "experimental_gap_eV": 7.83,
+    "pbe_gap_eV": _MGO["pbe_gap_eV"],
+    "dd0_rsh_cam_gap_eV": _MGO["dd0_rsh_cam_gap_eV"],
+    "experimental_gap_eV": _MGO["experimental_gap_eV"],
 }
 
 # label, output path (relative to repo root), notes
@@ -70,7 +72,7 @@ def parse_epsilon_ipa(epsr: Path) -> float | None:
         if line.startswith("#"):
             continue
         parts = line.split()
-        if len(parts) >= 4 and float(parts[0]) == 0.0:
+        if len(parts) >= 4 and abs(float(parts[0])) < 1e-8:
             vals = [float(parts[i]) for i in (1, 2, 3)]
             return sum(vals) / 3.0
     return None
@@ -228,14 +230,17 @@ def main() -> None:
                 "- **Not completed:** `epsilon.x` IPA on DD-RSH-CAM saves fails in QE 7.5 "
                 "(`non uniform kpt grid`). Documented toolchain limitation."
             )
+        paper_gap = LITERATURE["dd0_rsh_cam_gap_eV"]
+        offset = fitted4186 - paper_gap
         lines.extend(
             [
                 "",
                 "## Verdict",
                 "",
                 "1. **Patch / functional:** validated (PBE0/HSE limits bit-for-bit).",
-                "2. **Production gap 8.548 eV** — k and nqx converged within ±0.02 eV.",
-                "3. **+0.23 eV vs paper 8.32** is a setup/pipeline offset, not a kernel defect.",
+                f"2. **Production gap {fitted4186:.3f} eV** — k and nqx converged within ±0.02 eV.",
+                f"3. **{offset:+.2f} eV vs paper {paper_gap:.2f}** is a setup/pipeline offset, "
+                "not a kernel defect.",
                 "4. **Not a numerical reproduction** of Chen 2018 table entries.",
                 "",
             ]
