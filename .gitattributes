@@ -1,0 +1,20 @@
+# Normalize all text files to LF in the repository and working tree.
+# Binary files are auto-detected (NUL bytes) and left untouched.
+* text=auto eol=lf
+
+# Explicit text types (QE inputs, scripts, data, docs)
+*.in   text eol=lf
+*.sh   text eol=lf
+*.py   text eol=lf
+*.md   text eol=lf
+*.dat  text eol=lf
+*.json text eol=lf
+*.upf  text eol=lf
+*.patch text eol=lf
+
+# Known binary outputs (kept out of normalization)
+*.hdf5 binary
+*.png  binary
+*.pdf  binary
+*.gz   binary
+*.tar  binary
