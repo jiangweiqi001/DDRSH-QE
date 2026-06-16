@@ -1,0 +1,57 @@
+{
+  "material": "MgO",
+  "reference": "Chen et al., PRM 2, 073803 (2018)",
+  "setup": {
+    "code": "Quantum ESPRESSO 7.5 + lmodelhf patch",
+    "lattice_a_angstrom": 4.186,
+    "celldm1_bohr": 7.9104,
+    "pseudopotentials": "SG15 ONCV PBE 1.2",
+    "ecutwfc_ry": 80.0,
+    "ecutrho_ry": 320.0,
+    "k_mesh": "6x6x6",
+    "nqx": "6x6x6"
+  },
+  "ddrshcam_parameters": {
+    "source": "PBE turboEELS eps^-1(q) fit",
+    "eps_inf": 3.092,
+    "aexx": 0.3234,
+    "bexx": 1.0,
+    "mu_bohr_inv": 0.726,
+    "fit_rmse": 0.006,
+    "data_file": "runs/MgO/p2/eels/eps_q_clean.dat"
+  },
+  "gaps_eV": {
+    "pbe_this_work": 4.952,
+    "pbe_paper": 4.79,
+    "ddh_this_work": 8.111,
+    "ddh_paper": 7.70,
+    "dd_hse_approx_this_work": 5.227,
+    "strict_ddrshcam_production": 8.548,
+    "strict_ddrshcam_homo_eV": 6.270,
+    "strict_ddrshcam_lumo_eV": 14.817,
+    "paper_dd0_rsh_cam": 8.32,
+    "paper_rs_ddh": 7.88,
+    "experimental": 7.83
+  },
+  "patch_validation": {
+    "pbe0_gap_eV": 7.2006,
+    "hse_gap_eV": 6.4175,
+    "bit_for_bit": true,
+    "inputs": "runs/MgO/validate/"
+  },
+  "convergence_audit": {
+    "date": "2026-06-16",
+    "nqx_3_gap_eV": 8.674,
+    "nqx_6_gap_eV": 8.548,
+    "nqx_8_gap_eV": 8.548,
+    "k_8_gap_eV": 8.563,
+    "report": "results/MgO-audit.md"
+  },
+  "production_input": "runs/MgO/p2/ddrshcam/mgo.nqx6.in",
+  "claims": {
+    "implementation_verified": true,
+    "non_empirical_pipeline_complete": true,
+    "same_functional_family_as_paper": true,
+    "numerical_reproduction_of_paper_8.32_eV": false
+  }
+}

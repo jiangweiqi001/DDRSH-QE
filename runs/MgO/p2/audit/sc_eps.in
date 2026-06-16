@@ -1,0 +1,12 @@
+&inputpp
+  prefix      = 'mgo6'
+  outdir      = '../ddrshcam/out6'
+  calculation = 'eps'
+/
+&energy_grid
+  smeartype   = 'gauss'
+  intersmear  = 0.10
+  wmin        = 0.0
+  wmax        = 30.0
+  nw          = 3000
+/

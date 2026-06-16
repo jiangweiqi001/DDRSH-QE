@@ -1,0 +1,37 @@
+&control
+  calculation = 'nscf'
+  prefix      = 'mgo6'
+  outdir      = '../ddrshcam/out6'
+  pseudo_dir  = '../../../../pseudos'
+  verbosity   = 'high'
+/
+&system
+  ibrav            = 2
+  celldm(1)        = 7.9104
+  nat              = 2
+  ntyp             = 2
+  ecutwfc          = 80.0
+  ecutrho          = 320.0
+  occupations      = 'fixed'
+  nbnd             = 16
+  nosym            = .false.
+  noinv            = .false.
+  input_dft        = 'hse'
+  lmodelhf         = .true.
+  aexx             = 0.3234
+  bexx             = 1.0
+  hfscreen         = 0.7257
+  exxdiv_treatment = 'gygi-baldereschi'
+  nqx1 = 6, nqx2 = 6, nqx3 = 6
+/
+&electrons
+  conv_thr    = 1.0d-10
+/
+ATOMIC_SPECIES
+Mg  24.305  Mg_ONCV_PBE-1.2.upf
+O   15.999  O_ONCV_PBE-1.2.upf
+ATOMIC_POSITIONS crystal
+Mg  0.0  0.0  0.0
+O   0.5  0.5  0.5
+K_POINTS automatic
+6 6 6 0 0 0

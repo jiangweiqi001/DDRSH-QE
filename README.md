@@ -6,6 +6,8 @@ DD-RSH-CAM** functional in **Quantum ESPRESSO 7.5** by patching the source
 fractions), and runs the **full non-empirical pipeline** for MgO:
 `turboEELS ε⁻¹(q) → fit (ε∞, μ) → DD-RSH-CAM SCF → gap`.
 
+**Results summary:** [`results/MgO-results.md`](results/MgO-results.md)
+
 ## The functional
 
 DD-RSH-CAM uses a range-separated Fock kernel
@@ -71,7 +73,7 @@ total energy (8 d.p.) and identical eigenvalues at every SCF/EXX iteration
    PBE level, static (ω→0) over q ∈ [0.08, 1.35] bohr⁻¹ (`runs/MgO/p2/eels/scan_q.sh`).
 2. **Fit** — `scripts/fit_mu.py` fits `ε⁻¹(q) = 1 − (1−1/ε∞)·exp(−q²/4μ²)`:
    **ε∞ = 3.092, aexx = 0.323, μ = 0.726 bohr⁻¹** (RMSE 0.006).
-3. **Run** — DD-RSH-CAM SCF with the fitted parameters (`runs/MgO/p2/ddrshcam/`).
+3. **Run** — DD-RSH-CAM SCF with the fitted parameters (`runs/MgO/p2/ddrshcam/mgo.nqx6.in`).
 
 ### Results (MgO)
 
@@ -79,35 +81,38 @@ total energy (8 d.p.) and identical eigenvalues at every SCF/EXX iteration
 | --- | ---: |
 | PBE (this build) | 4.95 |
 | approximate DD-HSE (long-range Fock removed) | 5.23 |
-| **strict DD-RSH-CAM (this work, q-converged)** | **8.55** |
-| paper RS-DDH | 7.88 |
+| **strict DD-RSH-CAM (production, nqx 6×6×6)** | **8.55** |
 | paper DD0-RSH-CAM | 8.32 |
+| paper RS-DDH | 7.88 |
 | experiment | 7.83 |
 
-The strict gap (8.55 eV) lands in the paper's DD-RSH-CAM family (8.32 eV), **not**
-the approximate DD-HSE (5.23 eV) — confirming that keeping the long-range screened
-Fock is what matters. Residual vs paper: parameter source (paper ε∞=2.81), lattice
-constant (4.186 Å here vs 4.148 Å), pseudopotentials, and k/q convergence.
+The strict gap confirms the **DD-RSH-CAM physics** (long-range screened Fock kept) —
+it is **not** near approximate DD-HSE (5.23 eV). It sits in the same functional family
+as the paper (8.32 eV, above experiment). This is **not** a bit-for-bit reproduction of
+the paper table entry; see [`results/MgO-audit.md`](results/MgO-audit.md) for convergence
+and setup-offset decomposition (+0.23 eV vs paper 8.32 on the production run).
 
-> Toolchain limitation: QE DFPT/turboEELS run only at the semilocal level, so μ is
-> taken at PBE-RPA (transferable). A self-consistent hybrid ε∞ would use `epsilon.x`
-> (IPA, no local fields) and increase the gap further.
+> **Toolchain notes:** μ is taken from PBE-level turboEELS (semilocal-only DFPT).
+> Hybrid ε∞ self-consistency via `epsilon.x` IPA is not supported on DD-RSH-CAM saves
+> in QE 7.5 (audit 2026-06-16).
 
 ## Directory layout
 
 ```text
 patch/ddrshcam-qe-7.5.patch   the DD-RSH-CAM source patch for QE 7.5
-scripts/                      build, patch, dielectric-fit, and helper scripts
-runs/MgO/validate/            PBE0/HSE limit verification inputs+outputs
+scripts/                      build, patch, dielectric-fit, audit collector
+runs/MgO/validate/            PBE0/HSE limit verification inputs
 runs/MgO/p2/eels/             turboEELS eps^-1(q) scan + data (eps_q_clean.dat)
-runs/MgO/p2/ddrshcam/         strict DD-RSH-CAM production runs (nqx 3 and 6)
+runs/MgO/p2/ddrshcam/         strict DD-RSH-CAM production (mgo.nqx6.in)
+runs/MgO/p2/audit/            convergence audit inputs + run scripts
 runs/MgO/01-pbe-scf .. 04-dd-hse   earlier PBE / DDH / approximate-DD-HSE runs
 pseudos/                      SG15 ONCV PBE norm-conserving pseudopotentials
-results/MgO-ddrsh-summary.md  summary table and provenance
+results/                      MgO-results.md (main), MgO-audit.md, JSON summaries
 docs/                         implementation plan
 ```
 
-QE run outputs (`out/`, wavefunctions, `*.hdf5`) are not tracked — see `.gitignore`.
+Wavefunction directories (`out/`, `*.save/`, `*.hdf5`) are not tracked — see `.gitignore`.
+`.in` inputs and summary `.md`/`.json` are tracked; large `*.out` logs are optional locally.
 
 ## Key scripts
 
@@ -115,12 +120,15 @@ QE run outputs (`out/`, wavefunctions, `*.hdf5`) are not tracked — see `.gitig
   built tree against pristine QE 7.5.
 - `scripts/make_build_env.sh`, `scripts/build_qe.sh` — toolchain + compile.
 - `scripts/fit_mu.py` — fit ε∞ and μ from `eps_q.dat` (numpy only).
+- `scripts/collect_audit_gaps.py` — regenerate `results/MgO-audit.md`.
+
 ```bash
 python3 scripts/fit_mu.py runs/MgO/p2/eels/eps_q_clean.dat
+python3 scripts/collect_audit_gaps.py
 ```
 
 ## References
 
 - Skone, Govoni, Galli, *Phys. Rev. B* **89**, 195112 (2014) — DDH.
-- Chen, Pasquarello et al., dielectric-dependent range-separated hybrids (DD-RSH-CAM).
+- Chen et al., *Phys. Rev. Materials* **2**, 073803 (2018) — DD-RSH-CAM.
 - MgO experimental gap 7.83 eV.

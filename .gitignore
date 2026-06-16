@@ -19,9 +19,21 @@ data-file*.xml
 
 # logs and scratch
 *.log
+audit.log
 *.tmp
 scratch/
 tmp/
+
+# audit regenerable outputs (keep .in and summaries)
+runs/MgO/p2/audit/out_*/
+runs/MgO/p2/audit/*.out
+runs/MgO/p2/audit/epsr.dat
+
+# QE crash dumps
+**/CRASH
+runs/MgO/p2/audit/epsi.dat
+runs/MgO/p2/audit/eels.dat
+runs/MgO/p2/ddrshcam/outlit/
 
 # python
 __pycache__/
