@@ -96,6 +96,28 @@ and setup-offset decomposition (+0.23 eV vs paper 8.32 on the production run).
 > Hybrid ε∞ self-consistency via `epsilon.x` IPA is not supported on DD-RSH-CAM saves
 > in QE 7.5 (audit 2026-06-16).
 
+## Benchmark: several materials vs experiment
+
+The same non-empirical pipeline (no fitted mixing) was run on the clean sp materials
+of the [EFT-ARPES-bench](https://github.com/kunyuan/EFT-ARPES-bench) set. Full table,
+fitted (ε∞, μ) and method comparison in
+[`results/EFT-ARPES-bench-comparison.md`](results/EFT-ARPES-bench-comparison.md).
+
+| material | gap type | PBE | **DD-RSH-CAM** | expt | error | G₀W₀ | HSE06 | PBE0 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Si | indirect | 0.60 | **1.27** | 1.17 | +0.10 | 1.29 | 1.16 | 1.97 |
+| Si | direct Γ | — | **3.28** | 3.40 | −0.12 | 3.35 | 3.32 | 3.96 |
+| C (diamond) | indirect | 4.18 | **5.67** | 5.48 | +0.19 | 5.50 | 5.42 | 6.66 |
+| C (diamond) | direct Γ | — | **7.50** | 7.30 | +0.20 | 7.50 | 7.04 | 8.40 |
+| NaCl | direct Γ | 5.21 | **8.88** | 8.97 | −0.09 | 8.7 | 6.56 | 8.5 |
+| MgO | direct Γ | 4.95 | **8.55** | 7.83 | +0.72 | 7.69 | 6.51 | 7.23 |
+| LiF | direct Γ | 9.15 | **15.90** | 14.20 | +1.70 | 14.3 | 11.50 | 14.7 |
+
+Covalent / mid-gap solids (Si, C, NaCl) land within ≤0.2 eV of experiment — on top of
+G₀W₀, far better than PBE0's over-opening. The most ionic wide-gap crystals over-open
+as ε∞ → small (MgO +0.72, LiF +1.70); LiF coincides with QSGW (15.9 eV), which also
+overshoots before the e–h vertex. The PBE0/HSE limits remain bit-for-bit exact.
+
 ## Directory layout
 
 ```text
@@ -106,8 +128,9 @@ runs/MgO/p2/eels/             turboEELS eps^-1(q) scan + data (eps_q_clean.dat)
 runs/MgO/p2/ddrshcam/         strict DD-RSH-CAM production (mgo.nqx6.in)
 runs/MgO/p2/audit/            convergence audit inputs + run scripts
 runs/MgO/01-pbe-scf .. 04-dd-hse   earlier PBE / DDH / approximate-DD-HSE runs
+runs/Si/ runs/C/ runs/LiF/ runs/NaCl/   benchmark materials (PBE, eels, ddrshcam)
 pseudos/                      SG15 ONCV PBE norm-conserving pseudopotentials
-results/                      MgO-results.md (main), MgO-audit.md, JSON summaries
+results/                      MgO-results.md, Si-results.md, EFT-ARPES-bench-comparison.md
 docs/                         implementation plan
 ```
 
@@ -120,6 +143,7 @@ Wavefunction directories (`out/`, `*.save/`, `*.hdf5`) are not tracked — see `
   built tree against pristine QE 7.5.
 - `scripts/make_build_env.sh`, `scripts/build_qe.sh` — toolchain + compile.
 - `scripts/fit_mu.py` — fit ε∞ and μ from `eps_q.dat` (numpy only).
+- `scripts/scan_eps_q.sh` — generic turboEELS ε⁻¹(q) q-scan: `scan_eps_q.sh <prefix> <alat_bohr> <eels_dir>`.
 - `scripts/collect_audit_gaps.py` — regenerate `results/MgO-audit.md`.
 
 ```bash

@@ -1,0 +1,29 @@
+&control
+  calculation = 'scf'
+  prefix      = 'nacl'
+  outdir      = './out'
+  pseudo_dir  = '../../../../pseudos'
+  verbosity   = 'high'
+/
+&system
+  ibrav       = 2
+  celldm(1)   = 10.573
+  nat         = 2
+  ntyp        = 2
+  ecutwfc     = 50.0
+  ecutrho     = 200.0
+  occupations = 'fixed'
+  nbnd        = 16
+/
+&electrons
+  conv_thr    = 1.0d-12
+  mixing_beta = 0.7
+/
+ATOMIC_SPECIES
+Na  22.990  Na_ONCV_PBE-1.2.upf
+Cl  35.453  Cl_ONCV_PBE-1.2.upf
+ATOMIC_POSITIONS crystal
+Na  0.0  0.0  0.0
+Cl  0.5  0.5  0.5
+K_POINTS automatic
+8 8 8 0 0 0

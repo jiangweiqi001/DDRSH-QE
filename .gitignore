@@ -16,6 +16,11 @@ data-file*.xml
 
 # turboEELS scratch
 **/*.beta_gamma_z.*
+# turboEELS per-q run logs and transient inputs (heavy/regenerable; keep eps_q*.dat + plot_eps.q*.dat)
+**/scan.eels.q*.out
+**/scan.pp.q*.out
+**/scan.eels.in
+**/scan.pp.in
 
 # logs and scratch
 *.log

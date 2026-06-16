@@ -1,0 +1,28 @@
+&control
+  calculation = 'scf'
+  prefix      = 'c'
+  outdir      = './out'
+  pseudo_dir  = '../../../../pseudos'
+  verbosity   = 'high'
+/
+&system
+  ibrav       = 2
+  celldm(1)   = 6.741
+  nat         = 2
+  ntyp        = 1
+  ecutwfc     = 80.0
+  ecutrho     = 320.0
+  occupations = 'fixed'
+  nbnd        = 12
+/
+&electrons
+  conv_thr    = 1.0d-12
+  mixing_beta = 0.7
+/
+ATOMIC_SPECIES
+C  12.011  C_ONCV_PBE-1.2.upf
+ATOMIC_POSITIONS crystal
+C  0.00  0.00  0.00
+C  0.25  0.25  0.25
+K_POINTS automatic
+8 8 8 0 0 0
