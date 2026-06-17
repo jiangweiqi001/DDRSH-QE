@@ -119,7 +119,8 @@ Si      AlAs   C            MgO  LiCl  NaCl      CaF₂      LiF
 
 ```bash
 conda activate qedev                       # numpy + access to ~/qe-7.5/bin
-scripts/run_material.sh AlAs               # full pipeline for one material
+scripts/run_material.sh AlAs               # full pipeline for one material (serial)
+QE_NP=8 OMP_NUM_THREADS=2 scripts/run_material.sh GaAs   # MPI: 8 ranks x 2 threads
 python3 scripts/write_comparison.py --write  # regenerate the tables above
 ```
 
@@ -141,9 +142,10 @@ results/MgO-results.md            MgO detail (PBE0/HSE limit checks)
 
 > Toolchain notes: all QE steps use the self-built patched `~/qe-7.5/bin` (writes
 > `charge-density.dat`; the conda `qe` build writes HDF5 that self-built `turbo_eels.x`
-> cannot read). turboEELS fails at q=1.00 (2π/a) with a `minus_q` symmetry bug; that q
-> is auto-skipped by `scan_eps_q.sh`. Cutoffs: soft alkali halides (LiCl, NaCl) converge
-> at 50 Ry; Si and AlAs at 60 Ry; the harder/semicore solids (C, MgO, LiF, CaF₂) use 80 Ry.
-> Ge and GaAs (3d-in-valence, 28/18 e per cell) were attempted but are left out here: the
-> turboEELS q-scan and EXX SCF are too expensive on this machine to finish in reasonable
-> time.
+> cannot read). turboEELS fails at q=1.00 (2π/a) with a `minus_q` symmetry bug, so it is
+> omitted from the default q-list in `scan_eps_q.sh` (a skip-on-failure guard remains for
+> any other failure). Cutoffs: soft alkali halides (LiCl, NaCl) converge at 50 Ry; Si and
+> AlAs at 60 Ry; the harder/semicore solids (C, MgO, LiF, CaF₂) use 80 Ry. Set `QE_NP` to
+> run pw.x/turbo_eels.x under MPI (near-linear speedup). Ge and GaAs (3d-in-valence,
+> 28/18 e per cell) are left out here — too expensive in serial; rerun with `QE_NP` (MPI)
+> to make them feasible.

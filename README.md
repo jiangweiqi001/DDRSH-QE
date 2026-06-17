@@ -170,10 +170,15 @@ Build / patch / MgO audit:
 
 ```bash
 conda activate qedev                          # numpy + access to ~/qe-7.5/bin
-scripts/run_material.sh AlAs                   # full pipeline for one material
+scripts/run_material.sh AlAs                   # full pipeline for one material (serial)
+QE_NP=8 OMP_NUM_THREADS=2 scripts/run_material.sh GaAs   # MPI: 8 ranks x 2 threads/rank
 python3 scripts/write_comparison.py --write    # regenerate the comparison tables
 python3 scripts/matlib.py                       # list the configured materials
 ```
+
+`QE_NP` (MPI ranks, default 1) is the main speed lever for the heavy 3d materials; it
+needs an MPI-enabled QE build and an `mpirun` launcher (override with `MPIRUN`). `QLIST`
+overrides the turboEELS q-points (the fit has 2 parameters, so 5–6 points suffice).
 
 ## References
 

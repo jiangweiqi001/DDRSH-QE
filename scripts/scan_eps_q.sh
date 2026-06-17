@@ -3,18 +3,38 @@
 # Usage: scan_eps_q.sh <prefix> <alat_bohr> <workdir>
 # The workdir must already contain a converged SCF save in ./out (self-built
 # QE 7.5, charge-density.dat) with the given prefix.
+#
+# Env:
+#   QE_BIN   QE bin dir (default ~/qe-7.5/bin)
+#   QE_NP    MPI ranks for turbo_eels.x (default 1 = serial). >1 needs an MPI build.
+#   MPIRUN   MPI launcher (default mpirun)
+#   QLIST    space-separated q-points in 2pi/a (default omits 1.00: it hits a
+#            turbo_eels minus_q symmetry bug). The fit has 2 params, so 5-6 points suffice.
+#   OMP_NUM_THREADS  threads per rank (default 4)
 set -uo pipefail
 
 PREFIX="$1"; ALAT="$2"; WORKDIR="$3"
 BIN="${QE_BIN:-$HOME/qe-7.5/bin}"
+QE_NP="${QE_NP:-1}"
+MPIRUN="${MPIRUN:-mpirun}"
 export OMP_NUM_THREADS="${OMP_NUM_THREADS:-4}"
+
+# Run a QE binary under MPI when QE_NP > 1, otherwise serially.
+run_qe() {
+  if [ "$QE_NP" -gt 1 ]; then
+    "$MPIRUN" -np "$QE_NP" "$@"
+  else
+    "$@"
+  fi
+}
 
 cd "$WORKDIR"
 TPA=$(python3 -c "import math;print(2*math.pi/${ALAT})")   # 2pi/alat in bohr^-1
 OUT=eps_q.dat
 echo "# q[2pi/a]   q[bohr^-1]   eps_M(q,0)   eps^-1(q,0)" > "$OUT"
 
-for q in 0.10 0.20 0.30 0.45 0.60 0.80 1.00 1.30 1.70; do
+QLIST="${QLIST:-0.10 0.20 0.30 0.45 0.60 0.80 1.30 1.70}"
+for q in $QLIST; do
   cat > scan.eels.in <<EOF
 &lr_input
   prefix = '${PREFIX}'
@@ -48,10 +68,11 @@ EOF
   # Drop stale outputs so a failed turbo_eels can't leave turbo_spectrum
   # regenerating the previous q's spectrum from old Lanczos coefficients.
   rm -f ${PREFIX}.plot_eps.dat out/${PREFIX}.beta_gamma_z.* out/${PREFIX}.save/*.beta_gamma_z.*
-  if ! "$BIN/turbo_eels.x" -in scan.eels.in > scan.eels.q${q}.out 2>&1; then
+  if ! run_qe "$BIN/turbo_eels.x" -in scan.eels.in > scan.eels.q${q}.out 2>&1; then
     echo "q=${q}  SKIPPED (turbo_eels failed: e.g. minus_q symmetry bug)"
     continue
   fi
+  # turbo_spectrum.x is a serial post-processor; keep it off MPI.
   "$BIN/turbo_spectrum.x" -in scan.pp.in > scan.pp.q${q}.out 2>&1
   if [ ! -f ${PREFIX}.plot_eps.dat ]; then
     echo "q=${q}  SKIPPED (no plot_eps.dat; turbo_spectrum failed for this q)"
