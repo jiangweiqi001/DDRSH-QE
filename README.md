@@ -116,14 +116,15 @@ fitted (ε∞, μ) and method comparison in
 | NaCl | direct Γ | 5.21 | **8.88** | 8.97 | −0.09 | 8.7 | 6.56 | 8.5 |
 | MgO | direct Γ | 4.95 | **8.55** | 7.83 | +0.72 | 7.69 | 6.51 | 7.23 |
 | CaF₂ | indirect W→Γ | 7.33 | **13.15** | 11.80 | +1.35 | ~11.4 | ~10.4 | ~11.0 |
+| CaF₂ | direct Γ | — | **13.42** | 12.10 | +1.32 | ~11.8 | — | — |
 | LiF | direct Γ | 9.15 | **15.90** | 14.20 | +1.70 | 14.3 | 11.50 | 14.7 |
 
-**6 of 8 pass** their bench tolerance. Covalent / mid-gap solids and the III-V (Si, C,
-AlAs, LiCl, NaCl) land within ≤0.27 eV of experiment — on top of G₀W₀, far better than
-PBE0's over-opening, for both indirect and direct edges. The three smallest-ε∞ ionic
-crystals over-open as aexx = 1/ε∞ grows (MgO +0.72, CaF₂ +1.35, LiF +1.70); LiF coincides
-with QSGW (15.9 eV), which also overshoots before the e–h vertex. The PBE0/HSE limits
-remain bit-for-bit exact.
+**8 of 12 edges pass** their bench tolerance — **5 of 8 materials pass on every edge**.
+Covalent / mid-gap solids and the III-V (Si, C, AlAs, LiCl, NaCl) land within ≤0.27 eV of
+experiment — on top of G₀W₀, far better than PBE0's over-opening, for both indirect and
+direct edges. The three smallest-ε∞ ionic crystals over-open as aexx = 1/ε∞ grows
+(MgO +0.72, CaF₂ +1.35, LiF +1.70); LiF coincides with QSGW (15.9 eV), which also
+overshoots before the e–h vertex. The PBE0/HSE limits remain bit-for-bit exact.
 
 ## Directory layout
 
