@@ -98,8 +98,9 @@ and setup-offset decomposition (+0.23 eV vs paper 8.32 on the production run).
 
 ## Benchmark: several materials vs experiment
 
-The same non-empirical pipeline (no fitted mixing) was run on the clean sp materials
-of the [EFT-ARPES-bench](https://github.com/kunyuan/EFT-ARPES-bench) set. Full table,
+The same non-empirical pipeline (no fitted mixing) was run on 8 materials of the
+[EFT-ARPES-bench](https://github.com/kunyuan/EFT-ARPES-bench) set — covalent
+semiconductors, a III-V, alkali halides, and ionic wide-gap oxide/fluoride. Full table,
 fitted (ε∞, μ) and method comparison in
 [`results/EFT-ARPES-bench-comparison.md`](results/EFT-ARPES-bench-comparison.md).
 
@@ -109,14 +110,20 @@ fitted (ε∞, μ) and method comparison in
 | Si | direct Γ | — | **3.28** | 3.40 | −0.12 | 3.35 | 3.32 | 3.96 |
 | C (diamond) | indirect | 4.18 | **5.67** | 5.48 | +0.19 | 5.50 | 5.42 | 6.66 |
 | C (diamond) | direct Γ | — | **7.50** | 7.30 | +0.20 | 7.50 | 7.04 | 8.40 |
+| AlAs | indirect Γ→X | 1.43 | **2.19** | 2.23 | −0.04 | 2.18 | 2.04 | 2.86 |
+| AlAs | direct Γ | — | **2.86** | 3.13 | −0.27 | 2.88 | 2.97 | 3.86 |
+| LiCl | direct Γ | 6.43 | **9.61** | 9.40 | +0.21 | 9.1 | 7.80 | 9.0 |
 | NaCl | direct Γ | 5.21 | **8.88** | 8.97 | −0.09 | 8.7 | 6.56 | 8.5 |
 | MgO | direct Γ | 4.95 | **8.55** | 7.83 | +0.72 | 7.69 | 6.51 | 7.23 |
+| CaF₂ | indirect W→Γ | 7.33 | **13.15** | 11.80 | +1.35 | ~11.4 | ~10.4 | ~11.0 |
 | LiF | direct Γ | 9.15 | **15.90** | 14.20 | +1.70 | 14.3 | 11.50 | 14.7 |
 
-Covalent / mid-gap solids (Si, C, NaCl) land within ≤0.2 eV of experiment — on top of
-G₀W₀, far better than PBE0's over-opening. The most ionic wide-gap crystals over-open
-as ε∞ → small (MgO +0.72, LiF +1.70); LiF coincides with QSGW (15.9 eV), which also
-overshoots before the e–h vertex. The PBE0/HSE limits remain bit-for-bit exact.
+**6 of 8 pass** their bench tolerance. Covalent / mid-gap solids and the III-V (Si, C,
+AlAs, LiCl, NaCl) land within ≤0.27 eV of experiment — on top of G₀W₀, far better than
+PBE0's over-opening, for both indirect and direct edges. The three smallest-ε∞ ionic
+crystals over-open as aexx = 1/ε∞ grows (MgO +0.72, CaF₂ +1.35, LiF +1.70); LiF coincides
+with QSGW (15.9 eV), which also overshoots before the e–h vertex. The PBE0/HSE limits
+remain bit-for-bit exact.
 
 ## Directory layout
 
@@ -128,7 +135,8 @@ runs/MgO/p2/eels/             turboEELS eps^-1(q) scan + data (eps_q_clean.dat)
 runs/MgO/p2/ddrshcam/         strict DD-RSH-CAM production (mgo.nqx6.in)
 runs/MgO/p2/audit/            convergence audit inputs + run scripts
 runs/MgO/01-pbe-scf .. 04-dd-hse   earlier PBE / DDH / approximate-DD-HSE runs
-runs/Si/ runs/C/ runs/LiF/ runs/NaCl/   benchmark materials (PBE, eels, ddrshcam)
+runs/Si/ runs/C/ runs/AlAs/ runs/LiCl/ runs/NaCl/ runs/CaF2/ runs/LiF/
+                              benchmark materials (PBE, eels, ddrshcam)
 pseudos/                      SG15 ONCV PBE norm-conserving pseudopotentials
 results/                      MgO-results.md, Si-results.md, EFT-ARPES-bench-comparison.md
 docs/                         implementation plan
