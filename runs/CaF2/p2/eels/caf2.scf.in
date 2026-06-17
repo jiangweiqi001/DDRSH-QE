@@ -1,0 +1,30 @@
+&control
+  calculation = 'scf'
+  prefix      = 'caf2'
+  outdir      = './out'
+  pseudo_dir  = '../../../../pseudos'
+  verbosity   = 'high'
+/
+&system
+  ibrav       = 2
+  celldm(1)   = 10.323
+  nat         = 3
+  ntyp        = 2
+  ecutwfc     = 80.0
+  ecutrho     = 320.0
+  occupations = 'fixed'
+  nbnd        = 20
+/
+&electrons
+  conv_thr    = 1.0d-12
+  mixing_beta = 0.7
+/
+ATOMIC_SPECIES
+Ca  40.078  Ca_ONCV_PBE-1.2.upf
+F   18.998  F_ONCV_PBE-1.2.upf
+ATOMIC_POSITIONS crystal
+Ca  0.00  0.00  0.00
+F   0.25  0.25  0.25
+F   0.75  0.75  0.75
+K_POINTS automatic
+8 8 8 0 0 0
