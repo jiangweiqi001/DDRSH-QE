@@ -1,0 +1,177 @@
+# Per-material run configuration for the DD-RSH-CAM benchmark.
+#
+# Single source of truth for structure + QE run parameters. Consumed by:
+#   scripts/gen_inputs.py     -> generates the 3 QE inputs (PBE / eels / ddrshcam)
+#   scripts/run_material.sh   -> end-to-end driver (PBE -> eels -> fit -> ddrshcam)
+#   scripts/write_comparison.py -> reads structure (a, ecut) for the parameters table
+#
+# Experimental gaps and other-method reference values live in scripts/literature.py
+# (BENCHMARK dict). `nat`/`ntyp` are derived from positions/species at load time.
+#
+# Materials are ordered by aexx = 1/eps_inf (covalent -> ionic), matching the
+# coverage map in results/EFT-ARPES-bench-comparison.md.
+
+[Si]
+prefix = "si"
+structure = "diamond"
+ibrav = 2
+celldm1 = 10.263            # a = 5.431 A (experimental, si.toml)
+ecutwfc = 60.0
+ecutrho = 240.0
+nbnd = 12
+kmesh = [8, 8, 8]           # PBE SCF + eels SCF
+kmesh_hybrid = [6, 6, 6]    # DD-RSH-CAM SCF
+nqx = [6, 6, 6]             # Fock q-grid
+edges = ["indirect", "direct"]
+species = [{ symbol = "Si", mass = 28.085, pseudo = "Si_ONCV_PBE-1.2.upf" }]
+positions = [
+  { symbol = "Si", xyz = [0.00, 0.00, 0.00] },
+  { symbol = "Si", xyz = [0.25, 0.25, 0.25] },
+]
+
+[C]
+prefix = "c"
+structure = "diamond"
+ibrav = 2
+celldm1 = 6.741             # a = 3.567 A (experimental, c_diamond.toml)
+ecutwfc = 80.0
+ecutrho = 320.0
+nbnd = 12
+kmesh = [8, 8, 8]
+kmesh_hybrid = [6, 6, 6]
+nqx = [6, 6, 6]
+edges = ["indirect", "direct"]
+species = [{ symbol = "C", mass = 12.011, pseudo = "C_ONCV_PBE-1.2.upf" }]
+positions = [
+  { symbol = "C", xyz = [0.00, 0.00, 0.00] },
+  { symbol = "C", xyz = [0.25, 0.25, 0.25] },
+]
+
+[AlAs]
+prefix = "alas"
+structure = "zincblende"
+ibrav = 2
+celldm1 = 10.696            # a = 5.660 A (experimental, alas.toml)
+ecutwfc = 60.0
+ecutrho = 240.0
+nbnd = 16
+kmesh = [8, 8, 8]
+kmesh_hybrid = [6, 6, 6]
+nqx = [6, 6, 6]
+edges = ["indirect", "direct"]
+species = [
+  { symbol = "Al", mass = 26.982, pseudo = "Al_ONCV_PBE-1.2.upf" },
+  { symbol = "As", mass = 74.922, pseudo = "As_ONCV_PBE-1.2.upf" },
+]
+positions = [
+  { symbol = "Al", xyz = [0.00, 0.00, 0.00] },
+  { symbol = "As", xyz = [0.25, 0.25, 0.25] },
+]
+
+[MgO]
+prefix = "mgo"
+structure = "rocksalt"
+ibrav = 2
+celldm1 = 7.9104           # a = 4.186 A (experimental)
+ecutwfc = 80.0
+ecutrho = 320.0
+nbnd = 16
+kmesh = [8, 8, 8]
+kmesh_hybrid = [6, 6, 6]
+nqx = [6, 6, 6]
+edges = ["direct"]
+# MgO production hybrid run uses the legacy filename mgo.nqx6.out (nqx 6x6x6).
+ddrshcam_out = "p2/ddrshcam/mgo.nqx6.out"
+species = [
+  { symbol = "Mg", mass = 24.305, pseudo = "Mg_ONCV_PBE-1.2.upf" },
+  { symbol = "O", mass = 15.999, pseudo = "O_ONCV_PBE-1.2.upf" },
+]
+positions = [
+  { symbol = "Mg", xyz = [0.0, 0.0, 0.0] },
+  { symbol = "O", xyz = [0.5, 0.5, 0.5] },
+]
+
+[LiCl]
+prefix = "licl"
+structure = "rocksalt"
+ibrav = 2
+celldm1 = 9.649            # a = 5.106 A (experimental, licl.toml)
+ecutwfc = 50.0
+ecutrho = 200.0
+nbnd = 12
+kmesh = [8, 8, 8]
+kmesh_hybrid = [6, 6, 6]
+nqx = [6, 6, 6]
+edges = ["direct"]
+species = [
+  { symbol = "Li", mass = 6.941, pseudo = "Li_ONCV_PBE-1.2.upf" },
+  { symbol = "Cl", mass = 35.453, pseudo = "Cl_ONCV_PBE-1.2.upf" },
+]
+positions = [
+  { symbol = "Li", xyz = [0.0, 0.0, 0.0] },
+  { symbol = "Cl", xyz = [0.5, 0.5, 0.5] },
+]
+
+[NaCl]
+prefix = "nacl"
+structure = "rocksalt"
+ibrav = 2
+celldm1 = 10.573          # a = 5.595 A (experimental, nacl.toml)
+ecutwfc = 50.0
+ecutrho = 200.0
+nbnd = 16
+kmesh = [8, 8, 8]
+kmesh_hybrid = [6, 6, 6]
+nqx = [6, 6, 6]
+edges = ["direct"]
+species = [
+  { symbol = "Na", mass = 22.990, pseudo = "Na_ONCV_PBE-1.2.upf" },
+  { symbol = "Cl", mass = 35.453, pseudo = "Cl_ONCV_PBE-1.2.upf" },
+]
+positions = [
+  { symbol = "Na", xyz = [0.0, 0.0, 0.0] },
+  { symbol = "Cl", xyz = [0.5, 0.5, 0.5] },
+]
+
+[CaF2]
+prefix = "caf2"
+structure = "fluorite"
+ibrav = 2
+celldm1 = 10.323          # a = 5.463 A (experimental, caf2.toml)
+ecutwfc = 80.0
+ecutrho = 320.0
+nbnd = 20
+kmesh = [8, 8, 8]
+kmesh_hybrid = [6, 6, 6]
+nqx = [6, 6, 6]
+edges = ["indirect", "direct"]
+species = [
+  { symbol = "Ca", mass = 40.078, pseudo = "Ca_ONCV_PBE-1.2.upf" },
+  { symbol = "F", mass = 18.998, pseudo = "F_ONCV_PBE-1.2.upf" },
+]
+positions = [
+  { symbol = "Ca", xyz = [0.00, 0.00, 0.00] },
+  { symbol = "F", xyz = [0.25, 0.25, 0.25] },
+  { symbol = "F", xyz = [0.75, 0.75, 0.75] },
+]
+
+[LiF]
+prefix = "lif"
+structure = "rocksalt"
+ibrav = 2
+celldm1 = 7.605           # a = 4.026 A (experimental, lif.toml)
+ecutwfc = 80.0
+ecutrho = 320.0
+nbnd = 12
+kmesh = [8, 8, 8]
+kmesh_hybrid = [6, 6, 6]
+nqx = [6, 6, 6]
+edges = ["direct"]
+species = [
+  { symbol = "Li", mass = 6.941, pseudo = "Li_ONCV_PBE-1.2.upf" },
+  { symbol = "F", mass = 18.998, pseudo = "F_ONCV_PBE-1.2.upf" },
+]
+positions = [
+  { symbol = "Li", xyz = [0.0, 0.0, 0.0] },
+  { symbol = "F", xyz = [0.5, 0.5, 0.5] },
+]

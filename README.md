@@ -129,7 +129,8 @@ remain bit-for-bit exact.
 
 ```text
 patch/ddrshcam-qe-7.5.patch   the DD-RSH-CAM source patch for QE 7.5
-scripts/                      build, patch, dielectric-fit, audit collector
+config/materials.toml         per-material structure + run parameters (source of truth)
+scripts/                      build, patch, input-gen, driver, fit, gap, table generators
 runs/MgO/validate/            PBE0/HSE limit verification inputs
 runs/MgO/p2/eels/             turboEELS eps^-1(q) scan + data (eps_q_clean.dat)
 runs/MgO/p2/ddrshcam/         strict DD-RSH-CAM production (mgo.nqx6.in)
@@ -147,16 +148,30 @@ Wavefunction directories (`out/`, `*.save/`, `*.hdf5`) are not tracked — see `
 
 ## Key scripts
 
+Benchmark pipeline (driven by `config/materials.toml`, no hand-edited inputs):
+
+- `scripts/run_material.sh <Material>` — **end-to-end driver**: PBE SCF → eels SCF →
+  turboEELS scan → fit (ε∞, μ) → DD-RSH-CAM SCF → gaps.
+- `scripts/gen_inputs.py <Material>` — generate the 3 QE inputs from `materials.toml`.
+- `scripts/scan_eps_q.sh <prefix> <alat_bohr> <eels_dir>` — generic turboEELS ε⁻¹(q) scan.
+- `scripts/fit_mu.py <eps_q.dat>` — fit ε∞ and μ (parabolic-refined, numpy only).
+- `scripts/extract_gap.py <pw.out>` — fundamental + Γ-direct gap from a pw.x output.
+- `scripts/write_comparison.py --write` — regenerate the tables in
+  `results/EFT-ARPES-bench-comparison.md` from the actual runs (numbers can't drift).
+- `scripts/matlib.py` — loader / sanity printer for `config/materials.toml`.
+
+Build / patch / MgO audit:
+
 - `scripts/make_patch.sh` — regenerate `patch/ddrshcam-qe-7.5.patch` by diffing the
   built tree against pristine QE 7.5.
 - `scripts/make_build_env.sh`, `scripts/build_qe.sh` — toolchain + compile.
-- `scripts/fit_mu.py` — fit ε∞ and μ from `eps_q.dat` (numpy only).
-- `scripts/scan_eps_q.sh` — generic turboEELS ε⁻¹(q) q-scan: `scan_eps_q.sh <prefix> <alat_bohr> <eels_dir>`.
 - `scripts/collect_audit_gaps.py` — regenerate `results/MgO-audit.md`.
 
 ```bash
-python3 scripts/fit_mu.py runs/MgO/p2/eels/eps_q_clean.dat
-python3 scripts/collect_audit_gaps.py
+conda activate qedev                          # numpy + access to ~/qe-7.5/bin
+scripts/run_material.sh AlAs                   # full pipeline for one material
+python3 scripts/write_comparison.py --write    # regenerate the comparison tables
+python3 scripts/matlib.py                       # list the configured materials
 ```
 
 ## References

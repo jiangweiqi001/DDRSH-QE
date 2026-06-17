@@ -15,58 +15,73 @@ norm-conserving pseudopotentials, experimental lattice constants from the bench 
 8 materials, spanning covalent semiconductors, a III-V, alkali halides, and ionic
 wide-gap oxide/fluoride.
 
+> The three tables below are **auto-generated** from the actual run outputs by
+> `scripts/write_comparison.py --write` (structure/run params from
+> `config/materials.toml`, reference values from `scripts/literature.py`, fits and gaps
+> reparsed from `runs/`). Do not edit them by hand — rerun the script.
+
 ## Non-empirical parameters (from turboEELS fit)
 
+<!-- BEGIN:params -->
 | material | structure | a (bohr) | ecut (Ry) | ε∞ (fit) | ε∞ (expt) | μ (bohr⁻¹) | aexx = 1/ε∞ |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Si | diamond | 10.263 | 80 | 10.95 | ~11.7 | 0.657 | 0.091 |
+| Si | diamond | 10.263 | 60 | 10.95 | ~11.7 | 0.657 | 0.091 |
 | C (diamond) | diamond | 6.741 | 80 | 5.40 | ~5.7 | 0.901 | 0.185 |
 | AlAs | zincblende | 10.696 | 60 | 8.03 | ~8.16 | 0.605 | 0.125 |
 | MgO | rocksalt | 7.9104 | 80 | 3.09 | ~2.96 | 0.726 | 0.323 |
 | LiCl | rocksalt | 9.649 | 50 | 2.97 | ~2.75 | 0.633 | 0.337 |
 | NaCl | rocksalt | 10.573 | 50 | 2.53 | ~2.34 | 0.594 | 0.395 |
-| CaF₂ | fluorite | 10.323 | 80 | 2.25 | ~2.04 | 0.714 | 0.444 |
+| CaF₂ | fluorite | 10.323 | 80 | 2.25 | ~2.04 | 0.714 | 0.443 |
 | LiF | rocksalt | 7.605 | 80 | 2.04 | ~1.9 | 0.725 | 0.490 |
+<!-- END:params -->
 
 ## Band gaps vs experiment (eV)
 
+<!-- BEGIN:gaps -->
 | material | gap type | PBE | **DD-RSH-CAM** | expt | error | G₀W₀ | HSE06 | PBE0 |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Si | indirect | 0.60 | **1.27** | 1.17 | **+0.10** | 1.29 | 1.16 | 1.97 |
-| Si | direct Γ→Γ | — | **3.28** | 3.40 | **−0.12** | 3.35 | 3.32 | 3.96 |
-| C | indirect | 4.18 | **5.67** | 5.48 | **+0.19** | 5.50 | 5.42 | 6.66 |
-| C | direct Γ→Γ | — | **7.50** | 7.30 | **+0.20** | 7.50 | 7.04 | 8.40 |
-| AlAs | indirect Γ→X | 1.43 | **2.19** | 2.23 | **−0.04** | 2.18 | 2.04 | 2.86 |
-| AlAs | direct Γ→Γ | — | **2.86** | 3.13 | **−0.27** | 2.88 | 2.97 | 3.86 |
-| LiCl | direct Γ→Γ | 6.43 | **9.61** | 9.40 | **+0.21** | 9.1 | 7.80 | 9.0 |
-| NaCl | direct Γ→Γ | 5.21 | **8.88** | 8.97 | **−0.09** | 8.7 | 6.56 | 8.5 |
-| MgO | direct Γ→Γ | 4.95 | **8.55** | 7.83 | **+0.72** | 7.69 | 6.51 | 7.23 |
-| CaF₂ | indirect W→Γ | 7.33 | **13.15** | 11.80 | **+1.35** | ~11.4 | ~10.4 | ~11.0 |
-| CaF₂ | direct Γ→Γ | — | **13.42** | 12.10 | **+1.32** | ~11.8 | — | — |
-| LiF | direct Γ→Γ | 9.15 | **15.90** | 14.20 | **+1.70** | 14.3 | 11.50 | 14.7 |
+| Si | indirect | 0.60 | **1.27** | 1.17 | +0.10 | 1.29 | 1.16 | 1.97 |
+| Si | direct Γ→Γ | — | **3.28** | 3.40 | −0.12 | 3.35 | 3.32 | 3.96 |
+| C (diamond) | indirect | 4.18 | **5.67** | 5.48 | +0.19 | 5.5 | 5.42 | 6.66 |
+| C (diamond) | direct Γ→Γ | — | **7.50** | 7.30 | +0.20 | 7.5 | 7.04 | 8.4 |
+| AlAs | indirect Γ→X | 1.43 | **2.19** | 2.23 | −0.04 | 2.18 | 2.04 | 2.86 |
+| AlAs | direct Γ→Γ | — | **2.86** | 3.13 | −0.27 | 2.88 | 2.97 | 3.86 |
+| MgO | direct Γ→Γ | 4.95 | **8.55** | 7.83 | +0.72 | 7.69 | 6.51 | 7.23 |
+| LiCl | direct Γ→Γ | 6.43 | **9.61** | 9.40 | +0.21 | 9.1 | 7.8 | 9.0 |
+| NaCl | direct Γ→Γ | 5.21 | **8.88** | 8.97 | −0.09 | 8.7 | 6.56 | 8.5 |
+| CaF₂ | indirect W→Γ | 7.33 | **13.15** | 11.80 | +1.35 | ~11.4 | ~10.4 | ~11.0 |
+| CaF₂ | direct Γ→Γ | — | **13.42** | 12.10 | +1.32 | ~11.8 | — | — |
+| LiF | direct Γ→Γ | 9.15 | **15.90** | 14.20 | +1.70 | 14.3 | 11.5 | 14.7 |
+<!-- END:gaps -->
 
 (G₀W₀/HSE06/PBE0 columns are literature values from the bench TOMLs; MgO row from
 `results/MgO-results.md`. CaF₂ hybrid/GW literature is sparse — those entries are the
-bench-TOML estimates and are marked `~`.)
+bench-TOML estimates, marked `~`.)
 
 ## Verdict against the benchmark tolerances
 
-| material | tol (eV) | DD-RSH-CAM error | pass? |
-| --- | ---: | ---: | :--: |
-| Si (indirect) | 0.30 | +0.10 | ✅ |
-| Si (direct) | 0.30 | −0.12 | ✅ |
-| C (indirect) | 0.40 | +0.19 | ✅ |
-| C (direct) | 0.40 | +0.20 | ✅ |
-| AlAs (indirect) | 0.30 | −0.04 | ✅ |
-| AlAs (direct) | 0.30 | −0.27 | ✅ |
-| LiCl (direct) | 0.40 | +0.21 | ✅ |
-| NaCl (direct) | 0.40 | −0.09 | ✅ |
-| MgO (direct) | 0.50 | +0.72 | ❌ (over) |
-| CaF₂ (indirect) | 0.50 | +1.35 | ❌ (over) |
-| LiF (direct) | 0.50 | +1.70 | ❌ (over) |
+<!-- BEGIN:verdict -->
+| material | gap type | tol (eV) | DD-RSH-CAM error | pass? |
+| --- | --- | ---: | ---: | :--: |
+| Si | indirect | 0.30 | +0.10 | ✅ |
+| Si | direct Γ→Γ | 0.30 | −0.12 | ✅ |
+| C (diamond) | indirect | 0.40 | +0.19 | ✅ |
+| C (diamond) | direct Γ→Γ | 0.40 | +0.20 | ✅ |
+| AlAs | indirect Γ→X | 0.30 | −0.04 | ✅ |
+| AlAs | direct Γ→Γ | 0.30 | −0.27 | ✅ |
+| MgO | direct Γ→Γ | 0.50 | +0.72 | ❌ (over) |
+| LiCl | direct Γ→Γ | 0.40 | +0.21 | ✅ |
+| NaCl | direct Γ→Γ | 0.40 | −0.09 | ✅ |
+| CaF₂ | indirect W→Γ | 0.50 | +1.35 | ❌ (over) |
+| CaF₂ | direct Γ→Γ | 0.50 | +1.32 | ❌ (over) |
+| LiF | direct Γ→Γ | 0.50 | +1.70 | ❌ (over) |
 
-**6 of 8 materials pass** (covalent + III-V + alkali halides, both indirect and direct
-edges); the three smallest-ε∞ ionic crystals (MgO, CaF₂, LiF) over-open.
+**8 of 12 edges within tolerance.**
+<!-- END:verdict -->
+
+**5 of 8 materials pass on every edge** (Si, C, AlAs, LiCl, NaCl — covalent + III-V +
+alkali halides, both indirect and direct edges); the three smallest-ε∞ ionic crystals
+(MgO, CaF₂, LiF) over-open.
 
 ## What the numbers say
 
@@ -94,19 +109,32 @@ edges); the three smallest-ε∞ ionic crystals (MgO, CaF₂, LiF) over-open.
 
 ```
 ε∞ large ───────────────────────────────────────────────► ε∞ small
-Si      C    AlAs           MgO  LiCl  NaCl      CaF₂      LiF
-0.091  0.185 0.125          0.323 0.337 0.395    0.444    0.490   ← aexx = 1/ε∞
+Si      AlAs   C            MgO  LiCl  NaCl      CaF₂      LiF
+0.091  0.125  0.185         0.323 0.337 0.395    0.443    0.490   ← aexx = 1/ε∞
 ✅✅    ✅✅   ✅✅            ❌    ✅    ✅        ❌        ❌      ← within tol
         excellent  ────────────────►        over-opening ───────►
+```
+
+## Reproduce
+
+```bash
+conda activate qedev                       # numpy + access to ~/qe-7.5/bin
+scripts/run_material.sh AlAs               # full pipeline for one material
+python3 scripts/write_comparison.py --write  # regenerate the tables above
 ```
 
 ## Files
 
 ```text
+config/materials.toml             per-material structure + run parameters (source of truth)
 runs/Si/  runs/C/  runs/AlAs/  runs/MgO/  runs/LiCl/  runs/NaCl/  runs/CaF2/  runs/LiF/
                                   per-material PBE, eels, ddrshcam inputs + outputs
-scripts/scan_eps_q.sh             generic turboEELS ε⁻¹(q) q-scan (any prefix/a/dir)
+scripts/run_material.sh           end-to-end driver (PBE→eels→scan→fit→ddrshcam)
+scripts/gen_inputs.py             generate the 3 QE inputs from materials.toml
+scripts/scan_eps_q.sh             generic turboEELS ε⁻¹(q) q-scan
 scripts/fit_mu.py                 fit (ε∞, μ) from eps_q.dat with parabolic refinement
+scripts/extract_gap.py            fundamental + Γ-direct gap from a pw.x .out
+scripts/write_comparison.py       regenerate the tables in this file
 results/Si-results.md             Si detail
 results/MgO-results.md            MgO detail (PBE0/HSE limit checks)
 ```
@@ -115,7 +143,7 @@ results/MgO-results.md            MgO detail (PBE0/HSE limit checks)
 > `charge-density.dat`; the conda `qe` build writes HDF5 that self-built `turbo_eels.x`
 > cannot read). turboEELS fails at q=1.00 (2π/a) with a `minus_q` symmetry bug; that q
 > is auto-skipped by `scan_eps_q.sh`. Cutoffs: soft alkali halides (LiCl, NaCl) converge
-> at 50 Ry; AlAs at 60 Ry; the harder/semicore solids (Si, C, MgO, LiF, CaF₂) use 80 Ry.
+> at 50 Ry; Si and AlAs at 60 Ry; the harder/semicore solids (C, MgO, LiF, CaF₂) use 80 Ry.
 > Ge and GaAs (3d-in-valence, 28/18 e per cell) were attempted but are left out here: the
 > turboEELS q-scan and EXX SCF are too expensive on this machine to finish in reasonable
 > time.
