@@ -7,7 +7,8 @@
 # Env:
 #   QE_BIN   QE bin dir (default ~/qe-7.5/bin)
 #   QE_NP    MPI ranks for turbo_eels.x (default 1 = serial). >1 needs an MPI build.
-#   MPIRUN   MPI launcher (default mpirun)
+#   MPIRUN   MPI launcher, may carry flags (default mpirun). As root use
+#            MPIRUN="mpirun --allow-run-as-root".
 #   QLIST    space-separated q-points in 2pi/a (default omits 1.00: it hits a
 #            turbo_eels minus_q symmetry bug). The fit has 2 params, so 5-6 points suffice.
 #   OMP_NUM_THREADS  threads per rank (default 4)
@@ -22,11 +23,21 @@ export OMP_NUM_THREADS="${OMP_NUM_THREADS:-4}"
 # Run a QE binary under MPI when QE_NP > 1, otherwise serially.
 run_qe() {
   if [ "$QE_NP" -gt 1 ]; then
-    "$MPIRUN" -np "$QE_NP" "$@"
+    # MPIRUN is intentionally unquoted so it can carry flags, e.g.
+    #   MPIRUN="mpirun --allow-run-as-root"  (needed when running as root)
+    $MPIRUN -np "$QE_NP" "$@"
   else
     "$@"
   fi
 }
+
+# Guard: mpirun on a serial (non-MPI) QE binary launches N independent rank-0 copies
+# that clobber each other's outputs and silently corrupt results. Refuse it.
+if [ "$QE_NP" -gt 1 ] && ! printf '' | "$BIN/pw.x" 2>&1 | grep -q "Parallel version"; then
+  echo "ERROR: QE_NP=$QE_NP but $BIN/pw.x is a serial (non-MPI) build." >&2
+  echo "       Rebuild with MPI (scripts/build_qe.sh) or unset QE_NP." >&2
+  exit 1
+fi
 
 cd "$WORKDIR"
 TPA=$(python3 -c "import math;print(2*math.pi/${ALAT})")   # 2pi/alat in bohr^-1

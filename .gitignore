@@ -47,3 +47,4 @@ __pycache__/
 # editor / OS
 .DS_Store
 *.swp
+input_tmp.in

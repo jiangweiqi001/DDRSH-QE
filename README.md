@@ -54,7 +54,11 @@ patch -p1 < /path/to/patch/ddrshcam-qe-7.5.patch
 ```
 
 `scripts/make_build_env.sh` builds a no-sudo conda toolchain; `scripts/build_qe.sh`
-configures and compiles. The patch was developed against that environment.
+configures and compiles an **MPI + OpenMP** build of `pw.x`, `ph.x` and the turbo
+binaries (`turbo_eels.x`, `turbo_spectrum.x`) — it forces the MPI toolchain into
+`make.inc` (`-D__MPI`, `MPIF90`/`LD = mpif90`) because QE's configure cannot link-test
+the conda `mpif90` wrapper and otherwise falls back to a serial build. The patch was
+developed against that environment.
 
 ## Verification (patch correctness)
 
@@ -169,16 +173,28 @@ Build / patch / MgO audit:
 - `scripts/collect_audit_gaps.py` — regenerate `results/MgO-audit.md`.
 
 ```bash
-conda activate qedev                          # numpy + access to ~/qe-7.5/bin
-scripts/run_material.sh AlAs                   # full pipeline for one material (serial)
-QE_NP=8 OMP_NUM_THREADS=2 scripts/run_material.sh GaAs   # MPI: 8 ranks x 2 threads/rank
+conda activate qedev                           # numpy + access to ~/qe-7.5/bin
+
+# serial (OpenMP only)
+scripts/run_material.sh AlAs
+
+# MPI (recommended) — much faster on the turboEELS bottleneck at equal core count.
+# OpenMPI refuses to run as root, so on this box pass --allow-run-as-root via MPIRUN:
+QE_NP=4 OMP_NUM_THREADS=1 MPIRUN="mpirun --allow-run-as-root" \
+  scripts/run_material.sh AlAs
+
 python3 scripts/write_comparison.py --write    # regenerate the comparison tables
 python3 scripts/matlib.py                       # list the configured materials
 ```
 
-`QE_NP` (MPI ranks, default 1) is the main speed lever for the heavy 3d materials; it
-needs an MPI-enabled QE build and an `mpirun` launcher (override with `MPIRUN`). `QLIST`
-overrides the turboEELS q-points (the fit has 2 parameters, so 5–6 points suffice).
+`QE_NP` (MPI ranks, default 1) is the main speed lever. `scripts/build_qe.sh` produces a
+true MPI build (`Parallel version (MPI & OpenMP)`), and turboEELS scales far better over
+MPI than OpenMP — e.g. one AlAs q-point drops from **7m40s serial to 1m27s on 4 ranks**
+(~5.3×, same 4 cores), with results identical to ~1e-7. The driver refuses `QE_NP>1` on a
+serial binary so a mis-set `QE_NP` can't silently corrupt a run. `MPIRUN` carries the
+launcher and any flags (it is left unquoted, e.g. `mpirun --allow-run-as-root` when
+running as root). `QLIST` overrides the turboEELS q-points (the fit has 2 parameters, so
+5–6 points suffice).
 
 ## References
 
