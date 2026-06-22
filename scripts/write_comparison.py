@@ -6,7 +6,8 @@ The three tables (fit parameters, band gaps, verdict) are computed from:
   * scripts/literature.py BENCHMARK -- experimental + GW/HSE06/PBE0 references
   * runs/<M>/p2/eels/eps_q_clean.dat -- refit (eps_inf, mu, aexx)
   * runs/<M>/01-pbe-scf/*.scf.out    -- PBE fundamental gap
-  * runs/<M>/p2/ddrshcam/*.out       -- DD-RSH-CAM fundamental + Gamma-direct gap
+  * runs/<M>/p2/ddrshcam/*.out       -- DD-RSH-CAM (beta=1) fundamental + Gamma-direct gap
+  * runs/<M>/p2/rsddh/*.out          -- RS-DDH (beta=0.25) gaps, if present (else "—")
 
 So the prose stays hand-written but every NUMBER is derived from the actual runs and
 cannot drift. Tables are spliced between <!-- BEGIN:x -->/<!-- END:x --> markers.
@@ -28,7 +29,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from extract_gap import parse_gaps  # noqa: E402
 from fit_mu import best_A, parabolic_vertex  # noqa: E402
 from literature import BENCHMARK  # noqa: E402
-from matlib import ROOT, ddrshcam_out, eels_data, load_materials, pbe_out  # noqa: E402
+from matlib import (  # noqa: E402
+    ROOT, ddrshcam_out, eels_data, load_materials, pbe_out, rsddh_out,
+)
 
 DOC = ROOT / "results" / "EFT-ARPES-bench-comparison.md"
 DISPLAY = {"C": "C (diamond)", "CaF2": "CaF₂"}
@@ -81,10 +84,14 @@ def collect() -> dict[str, dict]:
         eps_inf, mu, aexx = fit_eps(eels_data(name, m))
         pbe = parse_gaps(pbe_out(name, m))
         ddh = parse_gaps(ddrshcam_out(name, m))
+        rs_path = rsddh_out(name, m)
+        rs = parse_gaps(rs_path) if rs_path.exists() else None
         rows[name] = {
             "mat": m, "eps_inf": eps_inf, "mu": mu, "aexx": aexx,
             "pbe_fund": pbe["fundamental"],
             "ddh_fund": ddh["fundamental"], "ddh_direct": ddh["gamma_direct"],
+            "rs_fund": rs["fundamental"] if rs else None,
+            "rs_direct": rs["gamma_direct"] if rs else None,
         }
     return rows
 
@@ -106,8 +113,9 @@ def table_params(rows) -> str:
 
 def table_gaps(rows) -> str:
     out = [
-        "| material | gap type | PBE | **DD-RSH-CAM** | expt | error | G₀W₀ | HSE06 | PBE0 |",
-        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| material | gap type | PBE | **DD-RSH-CAM** (β=1) | RS-DDH (β=¼) | expt | "
+        "err DDH | err RS | G₀W₀ | HSE06 | PBE0 |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for name, r in rows.items():
         m = r["mat"]
@@ -117,11 +125,15 @@ def table_gaps(rows) -> str:
         for kind in edges:
             ref = BENCHMARK[name]["edges"][kind]
             ddh = r["ddh_fund"] if kind == fund_kind else r["ddh_direct"]
+            rs = r["rs_fund"] if kind == fund_kind else r["rs_direct"]
             pbe_cell = fnum(r["pbe_fund"]) if kind == fund_kind else "—"
-            err = ddh - ref["expt"] if (ddh is not None and ref["expt"] is not None) else None
+            exp = ref["expt"]
+            err_d = ddh - exp if (ddh is not None and exp is not None) else None
+            err_r = rs - exp if (rs is not None and exp is not None) else None
             out.append(
                 f"| {disp(name)} | {edge_label(name, kind)} | {pbe_cell} | "
-                f"**{fnum(ddh)}** | {fnum(ref['expt'])} | {err_fmt(err)} | "
+                f"**{fnum(ddh)}** | {fnum(rs)} | {fnum(exp)} | "
+                f"{err_fmt(err_d)} | {err_fmt(err_r)} | "
                 f"{ref_fmt(ref['gw'], pre)} | {ref_fmt(ref['hse06'], pre)} | "
                 f"{ref_fmt(ref['pbe0'], pre)} |"
             )
@@ -130,10 +142,10 @@ def table_gaps(rows) -> str:
 
 def table_verdict(rows) -> str:
     out = [
-        "| material | gap type | tol (eV) | DD-RSH-CAM error | pass? |",
-        "| --- | --- | ---: | ---: | :--: |",
+        "| material | gap type | tol (eV) | DD-RSH-CAM err | pass? | RS-DDH err | pass? |",
+        "| --- | --- | ---: | ---: | :--: | ---: | :--: |",
     ]
-    npass = ntot = 0
+    npass = ntot = npass_rs = ntot_rs = 0
     for name, r in rows.items():
         m = r["mat"]
         tol = BENCHMARK[name]["tol_eV"]
@@ -141,16 +153,29 @@ def table_verdict(rows) -> str:
         for kind in m["edges"]:
             ref = BENCHMARK[name]["edges"][kind]
             ddh = r["ddh_fund"] if kind == fund_kind else r["ddh_direct"]
+            rs = r["rs_fund"] if kind == fund_kind else r["rs_direct"]
             err = ddh - ref["expt"]
             ok = abs(err) <= tol
             ntot += 1
             npass += ok
+            if rs is not None:
+                err_r = rs - ref["expt"]
+                ok_r = abs(err_r) <= tol
+                ntot_rs += 1
+                npass_rs += ok_r
+                rs_err_cell, rs_pass_cell = err_fmt(err_r), "✅" if ok_r else "❌ (over)"
+            else:
+                rs_err_cell, rs_pass_cell = "—", "—"
             out.append(
                 f"| {disp(name)} | {edge_label(name, kind)} | {tol:.2f} | "
-                f"{err_fmt(err)} | {'✅' if ok else '❌ (over)'} |"
+                f"{err_fmt(err)} | {'✅' if ok else '❌ (over)'} | "
+                f"{rs_err_cell} | {rs_pass_cell} |"
             )
     out.append("")
-    out.append(f"**{npass} of {ntot} edges within tolerance.**")
+    out.append(
+        f"**DD-RSH-CAM: {npass} of {ntot} edges within tolerance; "
+        f"RS-DDH (β=¼): {npass_rs} of {ntot_rs}.**"
+    )
     return "\n".join(out)
 
 

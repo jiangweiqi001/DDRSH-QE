@@ -105,13 +105,19 @@ K_POINTS automatic
 """
 
 
-def ddrshcam_input(mat: dict, aexx: str = "AEXX_PLACEHOLDER",
-                   hfscreen: str = "HFSCREEN_PLACEHOLDER") -> str:
+def hybrid_input(mat: dict, aexx: str, hfscreen: str, bexx: str,
+                 prefix_tag: str, outdir: str) -> str:
+    """Range-separated DD hybrid SCF (lmodelhf): long-range Fock A = aexx = 1/eps_inf,
+    short-range Fock B = bexx, screening mu = hfscreen.
+
+      B = 1.0   -> Chen 2018 DD-RSH-CAM   (full short-range Fock)
+      B = 0.25  -> Skone 2016 RS-DDH      (PBE0-like short-range fraction)
+    """
     nqx = mat["nqx"]
     return f"""&control
   calculation = 'scf'
-  prefix      = '{mat['prefix']}6'
-  outdir      = './out6'
+  prefix      = '{mat['prefix']}{prefix_tag}'
+  outdir      = '{outdir}'
   pseudo_dir  = '../../../../pseudos'
   verbosity   = 'high'
   tstress     = .false.
@@ -122,7 +128,7 @@ def ddrshcam_input(mat: dict, aexx: str = "AEXX_PLACEHOLDER",
   input_dft        = 'hse'
   lmodelhf         = .true.
   aexx             = {aexx}
-  bexx             = 1.0
+  bexx             = {bexx}
   hfscreen         = {hfscreen}
   exxdiv_treatment = 'gygi-baldereschi'
   nqx1 = {nqx[0]}, nqx2 = {nqx[1]}, nqx3 = {nqx[2]}
@@ -140,21 +146,37 @@ K_POINTS automatic
 """
 
 
+def ddrshcam_input(mat: dict, aexx: str = "AEXX_PLACEHOLDER",
+                   hfscreen: str = "HFSCREEN_PLACEHOLDER", bexx: str = "1.0") -> str:
+    """Chen 2018 DD-RSH-CAM: full short-range Fock (bexx = 1.0)."""
+    return hybrid_input(mat, aexx, hfscreen, bexx, "6", "./out6")
+
+
+def rsddh_input(mat: dict, aexx: str = "AEXX_PLACEHOLDER",
+                hfscreen: str = "HFSCREEN_PLACEHOLDER", bexx: str = "0.25") -> str:
+    """Skone 2016 RS-DDH: PBE0-like short-range Fock (bexx = 0.25)."""
+    return hybrid_input(mat, aexx, hfscreen, bexx, "rs", "./out_rs")
+
+
 def _dest(name: str, mat: dict, which: str) -> Path:
     p = mat["prefix"]
     return {
         "pbe": ROOT / "runs" / name / "01-pbe-scf" / f"{p}.scf.in",
         "eels": ROOT / "runs" / name / "p2" / "eels" / f"{p}.scf.in",
         "ddrshcam": ROOT / "runs" / name / "p2" / "ddrshcam" / f"{p}.ddrshcam.in",
+        "rsddh": ROOT / "runs" / name / "p2" / "rsddh" / f"{p}.rsddh.in",
     }[which]
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("material")
-    ap.add_argument("--which", choices=["pbe", "eels", "ddrshcam", "all"], default="all")
+    ap.add_argument("--which",
+                    choices=["pbe", "eels", "ddrshcam", "rsddh", "all"], default="all")
     ap.add_argument("--aexx", default="AEXX_PLACEHOLDER")
     ap.add_argument("--hfscreen", default="HFSCREEN_PLACEHOLDER")
+    ap.add_argument("--bexx", default=None,
+                    help="short-range Fock fraction (default 1.0 for ddrshcam, 0.25 for rsddh)")
     ap.add_argument("--stdout", action="store_true", help="print instead of writing files")
     args = ap.parse_args()
 
@@ -166,7 +188,8 @@ def main() -> None:
     builders = {
         "pbe": lambda: pbe_input(mat),
         "eels": lambda: eels_input(mat),
-        "ddrshcam": lambda: ddrshcam_input(mat, args.aexx, args.hfscreen),
+        "ddrshcam": lambda: ddrshcam_input(mat, args.aexx, args.hfscreen, args.bexx or "1.0"),
+        "rsddh": lambda: rsddh_input(mat, args.aexx, args.hfscreen, args.bexx or "0.25"),
     }
     which = ["pbe", "eels", "ddrshcam"] if args.which == "all" else [args.which]
     for w in which:

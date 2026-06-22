@@ -43,6 +43,12 @@ def ddrshcam_out(name: str, mat: dict) -> Path:
     return run_dir(name) / rel
 
 
+def rsddh_out(name: str, mat: dict) -> Path:
+    """Skone 2016 RS-DDH (bexx=0.25) hybrid output."""
+    rel = mat.get("rsddh_out", f"p2/rsddh/{mat['prefix']}.rsddh.out")
+    return run_dir(name) / rel
+
+
 if __name__ == "__main__":
     mats = load_materials()
     print(f"{len(mats)} materials in {CONFIG.relative_to(ROOT)}:")

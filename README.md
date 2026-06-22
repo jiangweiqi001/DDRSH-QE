@@ -108,27 +108,33 @@ semiconductors, a III-V, alkali halides, and ionic wide-gap oxide/fluoride. Full
 fitted (ε∞, μ) and method comparison in
 [`results/EFT-ARPES-bench-comparison.md`](results/EFT-ARPES-bench-comparison.md).
 
-| material | gap type | PBE | **DD-RSH-CAM** | expt | error | G₀W₀ | HSE06 | PBE0 |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Si | indirect | 0.60 | **1.27** | 1.17 | +0.10 | 1.29 | 1.16 | 1.97 |
-| Si | direct Γ | — | **3.28** | 3.40 | −0.12 | 3.35 | 3.32 | 3.96 |
-| C (diamond) | indirect | 4.18 | **5.67** | 5.48 | +0.19 | 5.50 | 5.42 | 6.66 |
-| C (diamond) | direct Γ | — | **7.50** | 7.30 | +0.20 | 7.50 | 7.04 | 8.40 |
-| AlAs | indirect Γ→X | 1.43 | **2.19** | 2.23 | −0.04 | 2.18 | 2.04 | 2.86 |
-| AlAs | direct Γ | — | **2.86** | 3.13 | −0.27 | 2.88 | 2.97 | 3.86 |
-| LiCl | direct Γ | 6.43 | **9.61** | 9.40 | +0.21 | 9.1 | 7.80 | 9.0 |
-| NaCl | direct Γ | 5.21 | **8.88** | 8.97 | −0.09 | 8.7 | 6.56 | 8.5 |
-| MgO | direct Γ | 4.95 | **8.55** | 7.83 | +0.72 | 7.69 | 6.51 | 7.23 |
-| CaF₂ | indirect W→Γ | 7.33 | **13.15** | 11.80 | +1.35 | ~11.4 | ~10.4 | ~11.0 |
-| CaF₂ | direct Γ | — | **13.42** | 12.10 | +1.32 | ~11.8 | — | — |
-| LiF | direct Γ | 9.15 | **15.90** | 14.20 | +1.70 | 14.3 | 11.50 | 14.7 |
+Two short-range Fock fractions are run on the same (ε∞, μ) fit: **DD-RSH-CAM** (Chen 2018,
+`bexx = 1`) and **RS-DDH** (Skone 2016, `bexx = 0.25`).
 
-**8 of 12 edges pass** their bench tolerance — **5 of 8 materials pass on every edge**.
-Covalent / mid-gap solids and the III-V (Si, C, AlAs, LiCl, NaCl) land within ≤0.27 eV of
-experiment — on top of G₀W₀, far better than PBE0's over-opening, for both indirect and
-direct edges. The three smallest-ε∞ ionic crystals over-open as aexx = 1/ε∞ grows
-(MgO +0.72, CaF₂ +1.35, LiF +1.70); LiF coincides with QSGW (15.9 eV), which also
-overshoots before the e–h vertex. The PBE0/HSE limits remain bit-for-bit exact.
+| material | gap type | PBE | **DD-RSH-CAM** (β=1) | RS-DDH (β=¼) | expt | G₀W₀ | HSE06 | PBE0 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Si | indirect | 0.60 | **1.27** | 1.15 | 1.17 | 1.29 | 1.16 | 1.97 |
+| Si | direct Γ | — | **3.28** | 3.09 | 3.40 | 3.35 | 3.32 | 3.96 |
+| C (diamond) | indirect | 4.18 | **5.67** | 5.60 | 5.48 | 5.50 | 5.42 | 6.66 |
+| C (diamond) | direct Γ | — | **7.50** | 7.18 | 7.30 | 7.50 | 7.04 | 8.40 |
+| AlAs | indirect Γ→X | 1.43 | **2.19** | 2.05 | 2.23 | 2.18 | 2.04 | 2.86 |
+| AlAs | direct Γ | — | **2.86** | 2.71 | 3.13 | 2.88 | 2.97 | 3.86 |
+| LiCl | direct Γ | 6.43 | **9.61** | 9.16 | 9.40 | 9.1 | 7.80 | 9.0 |
+| NaCl | direct Γ | 5.21 | **8.88** | 8.36 | 8.97 | 8.7 | 6.56 | 8.5 |
+| MgO | direct Γ | 4.95 | **8.55** | 8.09 | 7.83 | 7.69 | 6.51 | 7.23 |
+| CaF₂ | indirect W→Γ | 7.33 | **13.15** | 12.03 | 11.80 | ~11.4 | ~10.4 | ~11.0 |
+| CaF₂ | direct Γ | — | **13.42** | 12.31 | 12.10 | ~11.8 | — | — |
+| LiF | direct Γ | 9.15 | **15.90** | 14.76 | 14.20 | 14.3 | 11.50 | 14.7 |
+
+Both functionals pass **8 of 12 edges**, but on *complementary* materials. DD-RSH-CAM
+(β=1) is within ≤0.27 eV on the covalent / III-V / chloride edges (Si, C, AlAs, LiCl,
+NaCl) — on top of G₀W₀, far better than PBE0 — but over-opens the small-ε∞ ionic crystals
+(MgO +0.72, CaF₂ +1.3, LiF +1.70). Dropping the short-range Fock to β=¼ (RS-DDH) removes
+most of that over-opening (MgO +0.26, CaF₂ +0.2, LiF +0.56 — MgO and both CaF₂ edges pass)
+at the cost of mildly under-opening the covalent direct edges (Si/AlAs Γ, NaCl). Short-range
+Fock is the knob trading ionic over-opening against covalent under-opening; the PBE0/HSE
+limits remain bit-for-bit exact. Full per-edge errors and tolerances in
+[`results/EFT-ARPES-bench-comparison.md`](results/EFT-ARPES-bench-comparison.md).
 
 ## Directory layout
 
@@ -155,9 +161,12 @@ Wavefunction directories (`out/`, `*.save/`, `*.hdf5`) are not tracked — see `
 
 Benchmark pipeline (driven by `config/materials.toml`, no hand-edited inputs):
 
-- `scripts/run_material.sh <Material>` — **end-to-end driver**: PBE SCF → eels SCF →
-  turboEELS scan → fit (ε∞, μ) → DD-RSH-CAM SCF → gaps.
-- `scripts/gen_inputs.py <Material>` — generate the 3 QE inputs from `materials.toml`.
+- `scripts/run_material.sh <Material>` — **end-to-end DD-RSH-CAM driver** (β=1): PBE SCF →
+  eels SCF → turboEELS scan → fit (ε∞, μ) → DD-RSH-CAM SCF → gaps.
+- `scripts/run_rsddh.sh <Material>` — **RS-DDH driver** (β=0.25, Skone 2016): reuses the
+  turboEELS fit and only re-runs the hybrid SCF; writes to `runs/<M>/p2/rsddh/`.
+- `scripts/gen_inputs.py <Material> [--which rsddh] [--bexx B]` — generate QE inputs from
+  `materials.toml` (short-range Fock `bexx`: 1.0 for ddrshcam, 0.25 for rsddh).
 - `scripts/scan_eps_q.sh <prefix> <alat_bohr> <eels_dir>` — generic turboEELS ε⁻¹(q) scan.
 - `scripts/fit_mu.py <eps_q.dat>` — fit ε∞ and μ (parabolic-refined, numpy only).
 - `scripts/extract_gap.py <pw.out>` — fundamental + Γ-direct gap from a pw.x output.

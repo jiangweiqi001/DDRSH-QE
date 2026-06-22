@@ -44,10 +44,15 @@ run_qe() {
 
 # Guard: mpirun on a serial (non-MPI) QE binary launches N independent rank-0 copies
 # that clobber each other's outputs and silently corrupt results. Refuse it.
-if [ "$QE_NP" -gt 1 ] && ! printf '' | "$BIN/pw.x" 2>&1 | grep -q "Parallel version"; then
-  echo "ERROR: QE_NP=$QE_NP but $BIN/pw.x is a serial (non-MPI) build." >&2
-  echo "       Rebuild with MPI (scripts/build_qe.sh) or unset QE_NP." >&2
-  exit 1
+# pw.x exits non-zero on empty input (MPI_ABORT), so capture the banner first (|| true)
+# to keep `set -o pipefail` from masking the grep result.
+if [ "$QE_NP" -gt 1 ]; then
+  qe_banner="$(printf '' | "$BIN/pw.x" 2>&1 || true)"
+  if ! printf '%s' "$qe_banner" | grep -q "Parallel version"; then
+    echo "ERROR: QE_NP=$QE_NP but $BIN/pw.x is a serial (non-MPI) build." >&2
+    echo "       Rebuild with MPI (scripts/build_qe.sh) or unset QE_NP." >&2
+    exit 1
+  fi
 fi
 
 eval "$($PY - <<EOF
