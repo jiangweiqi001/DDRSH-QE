@@ -88,7 +88,7 @@ def collect() -> dict[str, dict]:
         rs = parse_gaps(rs_path) if rs_path.exists() else None
         rows[name] = {
             "mat": m, "eps_inf": eps_inf, "mu": mu, "aexx": aexx,
-            "pbe_fund": pbe["fundamental"],
+            "pbe_fund": pbe["fundamental"], "pbe_direct": pbe["gamma_direct"],
             "ddh_fund": ddh["fundamental"], "ddh_direct": ddh["gamma_direct"],
             "rs_fund": rs["fundamental"] if rs else None,
             "rs_direct": rs["gamma_direct"] if rs else None,
@@ -126,7 +126,7 @@ def table_gaps(rows) -> str:
             ref = BENCHMARK[name]["edges"][kind]
             ddh = r["ddh_fund"] if kind == fund_kind else r["ddh_direct"]
             rs = r["rs_fund"] if kind == fund_kind else r["rs_direct"]
-            pbe_cell = fnum(r["pbe_fund"]) if kind == fund_kind else "—"
+            pbe_cell = fnum(r["pbe_fund"] if kind == fund_kind else r["pbe_direct"])
             exp = ref["expt"]
             err_d = ddh - exp if (ddh is not None and exp is not None) else None
             err_r = rs - exp if (rs is not None and exp is not None) else None
