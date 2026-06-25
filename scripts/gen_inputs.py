@@ -17,6 +17,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import math
 from pathlib import Path
 
 from matlib import ROOT, load_materials
@@ -158,8 +159,24 @@ def rsddh_input(mat: dict, aexx: str = "AEXX_PLACEHOLDER",
     return hybrid_input(mat, aexx, hfscreen, bexx, "rs", "./out_rs")
 
 
-def _dest(name: str, mat: dict, which: str) -> Path:
+def finiteg_bexx(aexx: float, a: float) -> float:
+    """Finite-G short-range endpoint B_a = ε⁻¹(G = a·μ) under the single-μ model
+    ε⁻¹(G) = 1 − (1−A)·exp(−G²/4μ²), with A = aexx = 1/ε∞. `a` is a global constant
+    (same for all materials); B_a is material-dependent through A."""
+    return 1.0 - (1.0 - aexx) * math.exp(-(a ** 2) / 4.0)
+
+
+def finiteg_input(mat: dict, aexx: str, hfscreen: str, a: float) -> str:
+    """Finite-G model: single μ, long-range Fock A = 1/ε∞, short-range endpoint
+    bexx = B_a = ε⁻¹(a·μ). Same kernel as DD-RSH-CAM/RS-DDH, only bexx changes."""
+    bexx = finiteg_bexx(float(aexx), a)
+    return hybrid_input(mat, f"{float(aexx):.4f}", hfscreen, f"{bexx:.4f}", "fg", "./out_fg")
+
+
+def _dest(name: str, mat: dict, which: str, a: float | None = None) -> Path:
     p = mat["prefix"]
+    if which == "finiteg":
+        return ROOT / "runs" / name / "p2" / f"finiteG_a{a:.1f}" / f"{p}.fg.in"
     return {
         "pbe": ROOT / "runs" / name / "01-pbe-scf" / f"{p}.scf.in",
         "eels": ROOT / "runs" / name / "p2" / "eels" / f"{p}.scf.in",
@@ -172,11 +189,14 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("material")
     ap.add_argument("--which",
-                    choices=["pbe", "eels", "ddrshcam", "rsddh", "all"], default="all")
+                    choices=["pbe", "eels", "ddrshcam", "rsddh", "finiteg", "all"],
+                    default="all")
     ap.add_argument("--aexx", default="AEXX_PLACEHOLDER")
     ap.add_argument("--hfscreen", default="HFSCREEN_PLACEHOLDER")
     ap.add_argument("--bexx", default=None,
                     help="short-range Fock fraction (default 1.0 for ddrshcam, 0.25 for rsddh)")
+    ap.add_argument("--a", type=float, default=None,
+                    help="finite-G constant a (B_a = 1-(1-A)exp(-a^2/4)); required for finiteg")
     ap.add_argument("--stdout", action="store_true", help="print instead of writing files")
     args = ap.parse_args()
 
@@ -185,11 +205,15 @@ def main() -> None:
         ap.error(f"unknown material {args.material!r}; have {', '.join(mats)}")
     mat = mats[args.material]
 
+    if args.which == "finiteg" and args.a is None:
+        ap.error("--which finiteg requires --a")
+
     builders = {
         "pbe": lambda: pbe_input(mat),
         "eels": lambda: eels_input(mat),
         "ddrshcam": lambda: ddrshcam_input(mat, args.aexx, args.hfscreen, args.bexx or "1.0"),
         "rsddh": lambda: rsddh_input(mat, args.aexx, args.hfscreen, args.bexx or "0.25"),
+        "finiteg": lambda: finiteg_input(mat, args.aexx, args.hfscreen, args.a),
     }
     which = ["pbe", "eels", "ddrshcam"] if args.which == "all" else [args.which]
     for w in which:
@@ -197,7 +221,7 @@ def main() -> None:
         if args.stdout:
             print(f"===== {w} =====\n{content}")
             continue
-        dest = _dest(args.material, mat, w)
+        dest = _dest(args.material, mat, w, args.a)
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(content)
         print(f"wrote {dest.relative_to(ROOT)}")

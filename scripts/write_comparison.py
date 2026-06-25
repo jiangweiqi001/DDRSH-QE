@@ -8,6 +8,7 @@ The three tables (fit parameters, band gaps, verdict) are computed from:
   * runs/<M>/01-pbe-scf/*.scf.out    -- PBE fundamental gap
   * runs/<M>/p2/ddrshcam/*.out       -- DD-RSH-CAM (beta=1) fundamental + Gamma-direct gap
   * runs/<M>/p2/rsddh/*.out          -- RS-DDH (beta=0.25) gaps, if present (else "—")
+  * runs/<M>/p2/finiteG_a*/*.fg.out  -- finite-G (bexx=B_a) gaps for a=0.5,1.0,2.0, if present
 
 So the prose stays hand-written but every NUMBER is derived from the actual runs and
 cannot drift. Tables are spliced between <!-- BEGIN:x -->/<!-- END:x --> markers.
@@ -28,14 +29,18 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from extract_gap import parse_gaps  # noqa: E402
 from fit_mu import best_A, parabolic_vertex  # noqa: E402
+from gen_inputs import finiteg_bexx  # noqa: E402
 from literature import BENCHMARK  # noqa: E402
 from matlib import (  # noqa: E402
-    ROOT, ddrshcam_out, eels_data, load_materials, pbe_out, rsddh_out,
+    ROOT, ddrshcam_out, eels_data, finiteg_out, load_materials, pbe_out, rsddh_out,
 )
 
 DOC = ROOT / "results" / "EFT-ARPES-bench-comparison.md"
 DISPLAY = {"C": "C (diamond)", "CaF2": "CaF₂"}
 APPROX_REF = {"CaF2"}  # GW/HSE/PBE0 entries are bench estimates -> prefix "~"
+FG_AS = (0.5, 1.0, 2.0)              # finite-G global constants
+IONIC = {"MgO", "CaF2", "LiF"}      # low-ε∞ strong-ionic wide-gap
+COVAL = {"Si", "C", "AlAs"}         # covalent / III-V
 
 
 def disp(name: str) -> str:
@@ -86,14 +91,49 @@ def collect() -> dict[str, dict]:
         ddh = parse_gaps(ddrshcam_out(name, m))
         rs_path = rsddh_out(name, m)
         rs = parse_gaps(rs_path) if rs_path.exists() else None
+        fg = {}
+        for a in FG_AS:
+            p = finiteg_out(name, m, a)
+            g = parse_gaps(p) if p.exists() else None
+            fg[a] = {
+                "fund": g["fundamental"] if g else None,
+                "direct": g["gamma_direct"] if g else None,
+                "bexx": finiteg_bexx(aexx, a),
+            }
         rows[name] = {
             "mat": m, "eps_inf": eps_inf, "mu": mu, "aexx": aexx,
             "pbe_fund": pbe["fundamental"], "pbe_direct": pbe["gamma_direct"],
             "ddh_fund": ddh["fundamental"], "ddh_direct": ddh["gamma_direct"],
             "rs_fund": rs["fundamental"] if rs else None,
             "rs_direct": rs["gamma_direct"] if rs else None,
+            "fg": fg,
         }
     return rows
+
+
+def model_gap(r, model, kind, fund_kind):
+    """Gap for a model on one edge. model: 'ddh', 'rs', or a finite-G `a` (float)."""
+    is_fund = kind == fund_kind
+    if model == "ddh":
+        return r["ddh_fund"] if is_fund else r["ddh_direct"]
+    if model == "rs":
+        return r["rs_fund"] if is_fund else r["rs_direct"]
+    return r["fg"][model]["fund"] if is_fund else r["fg"][model]["direct"]
+
+
+def mae(rows, model, matset=None):
+    errs = []
+    for name, r in rows.items():
+        if matset and name not in matset:
+            continue
+        m = r["mat"]
+        fund_kind = "indirect" if "indirect" in m["edges"] else "direct"
+        for kind in m["edges"]:
+            g = model_gap(r, model, kind, fund_kind)
+            exp = BENCHMARK[name]["edges"][kind]["expt"]
+            if g is not None and exp is not None:
+                errs.append(abs(g - exp))
+    return sum(errs) / len(errs) if errs else None
 
 
 def table_params(rows) -> str:
@@ -179,6 +219,64 @@ def table_verdict(rows) -> str:
     return "\n".join(out)
 
 
+def table_fgparams(rows) -> str:
+    """Material-dependent short-range endpoints B_a = 1−(1−A)·exp(−a²/4)."""
+    out = [
+        "| material | A = 1/ε∞ | B (a=0.5) | B (a=1.0) | B (a=2.0) |",
+        "| --- | ---: | ---: | ---: | ---: |",
+    ]
+    for name, r in rows.items():
+        cells = " | ".join(f"{r['fg'][a]['bexx']:.3f}" for a in FG_AS)
+        out.append(f"| {disp(name)} | {r['aexx']:.3f} | {cells} |")
+    return "\n".join(out)
+
+
+def table_finiteg(rows) -> str:
+    """Second gaps table: finite-G models next to DD-RSH-CAM and RS-DDH."""
+    out = [
+        "| material | gap type | expt | **DD-RSH-CAM** (β=1) | RS-DDH (β=¼) | "
+        "finite-G a=0.5 | finite-G a=1.0 | finite-G a=2.0 |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for name, r in rows.items():
+        m = r["mat"]
+        fund_kind = "indirect" if "indirect" in m["edges"] else "direct"
+        for kind in m["edges"]:
+            exp = BENCHMARK[name]["edges"][kind]["expt"]
+            ddh = model_gap(r, "ddh", kind, fund_kind)
+            rs = model_gap(r, "rs", kind, fund_kind)
+            fgc = " | ".join(fnum(model_gap(r, a, kind, fund_kind)) for a in FG_AS)
+            out.append(
+                f"| {disp(name)} | {edge_label(name, kind)} | {fnum(exp)} | "
+                f"**{fnum(ddh)}** | {fnum(rs)} | {fgc} |"
+            )
+    return "\n".join(out)
+
+
+def table_mae(rows) -> str:
+    """MAE per model, overall and split by ionic / covalent subsets."""
+    models = [
+        ("DD-RSH-CAM (β=1)", "ddh"), ("RS-DDH (β=¼)", "rs"),
+        ("finite-G a=0.5", 0.5), ("finite-G a=1.0", 1.0), ("finite-G a=2.0", 2.0),
+    ]
+    out = [
+        "| model | MAE all (eV) | MAE ionic¹ | MAE covalent² |",
+        "| --- | ---: | ---: | ---: |",
+    ]
+    for label, mk in models:
+        out.append(
+            f"| {label} | {fnum(mae(rows, mk), 3)} | "
+            f"{fnum(mae(rows, mk, IONIC), 3)} | {fnum(mae(rows, mk, COVAL), 3)} |"
+        )
+    out.append("")
+    out.append(
+        "¹ ionic = MgO, CaF₂, LiF (low-ε∞ strong-ionic wide-gap). "
+        "² covalent = Si, C, AlAs (covalent / III–V). "
+        "MAE is over all listed edges (fundamental + direct Γ→Γ) where a value exists."
+    )
+    return "\n".join(out)
+
+
 def splice(text: str, tag: str, body: str) -> str:
     a, b = f"<!-- BEGIN:{tag} -->", f"<!-- END:{tag} -->"
     if a not in text or b not in text:
@@ -197,6 +295,9 @@ def main() -> None:
         "params": table_params(rows),
         "gaps": table_gaps(rows),
         "verdict": table_verdict(rows),
+        "fgparams": table_fgparams(rows),
+        "finiteg": table_finiteg(rows),
+        "mae": table_mae(rows),
     }
     if not args.write:
         for tag, body in tables.items():

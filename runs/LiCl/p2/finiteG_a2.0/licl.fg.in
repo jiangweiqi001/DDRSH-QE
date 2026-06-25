@@ -1,0 +1,38 @@
+&control
+  calculation = 'scf'
+  prefix      = 'liclfg'
+  outdir      = './out_fg'
+  pseudo_dir  = '../../../../pseudos'
+  verbosity   = 'high'
+  tstress     = .false.
+  tprnfor     = .false.
+/
+&system
+  ibrav       = 2
+  celldm(1)   = 9.649   ! a = 5.106 A (experimental)
+  nat         = 2
+  ntyp        = 2
+  ecutwfc     = 50.0
+  ecutrho     = 200.0
+  occupations = 'fixed'
+  nbnd        = 12
+  input_dft        = 'hse'
+  lmodelhf         = .true.
+  aexx             = 0.3365
+  bexx             = 0.7559
+  hfscreen         = 0.6330
+  exxdiv_treatment = 'gygi-baldereschi'
+  nqx1 = 6, nqx2 = 6, nqx3 = 6
+/
+&electrons
+  conv_thr    = 1.0d-8
+  mixing_beta = 0.7
+/
+ATOMIC_SPECIES
+Li     6.941  Li_ONCV_PBE-1.2.upf
+Cl    35.453  Cl_ONCV_PBE-1.2.upf
+ATOMIC_POSITIONS crystal
+Li    0.0   0.0   0.0
+Cl    0.5   0.5   0.5
+K_POINTS automatic
+6 6 6 0 0 0

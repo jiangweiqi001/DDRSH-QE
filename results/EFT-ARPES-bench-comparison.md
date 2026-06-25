@@ -23,7 +23,7 @@ DD-RSH-CAM fit and only re-runs the final hybrid SCF (`scripts/run_rsddh.sh`).
 8 materials, spanning covalent semiconductors, a III-V, alkali halides, and ionic
 wide-gap oxide/fluoride.
 
-> The three tables below are **auto-generated** from the actual run outputs by
+> The tables below are **auto-generated** from the actual run outputs by
 > `scripts/write_comparison.py --write` (structure/run params from
 > `config/materials.toml`, reference values from `scripts/literature.py`, fits and gaps
 > reparsed from `runs/`). Do not edit them by hand — rerun the script.
@@ -138,6 +138,109 @@ trades **ionic over-opening (favours β=¼)** against **covalent under-opening (
 
 (Pairs are indirect/direct where a material has two edges; single mark = one edge.)
 
+## Finite-G model (third class: material-dependent short-range endpoint)
+
+`bexx = 1` (DD-RSH-CAM) and `bexx = ¼` (RS-DDH) are the two *fixed* short-range endpoints.
+The finite-G model keeps the same single-μ kernel (long-range Fock `aexx = 1/ε∞`,
+screening `μ = hfscreen`), but sets the short-range Fock endpoint to the **dielectric
+function evaluated at a finite wavevector** `G = a·μ`:
+
+```
+B_a = ε⁻¹(G = a·μ) = 1 − (1 − A)·exp(−a²/4),     A = aexx = 1/ε∞
+```
+
+`a` is a single **global** constant (the same for every material — no per-material
+tuning); `B_a` is then a **material-dependent** effective short-range endpoint, set by each
+material's own A. The limits make the interpolation explicit: `a→0 ⇒ B_a→1` (DD-RSH-CAM)
+and `a→∞ ⇒ B_a→A` (a global hybrid with a single fraction 1/ε∞). For finite `a`,
+`A ≤ B_a ≤ 1`, and larger `a` means *less* short-range Fock. The dielectric input is
+functional-independent, so each `a` reuses the DD-RSH-CAM fit and only re-runs the hybrid
+SCF (`scripts/run_finiteg.sh <M> <a>`); results live in `runs/<M>/p2/finiteG_a<a>/` and do
+not touch the β=1 / β=¼ runs.
+
+Endpoints actually used (derived from each material's A):
+
+<!-- BEGIN:fgparams -->
+| material | A = 1/ε∞ | B (a=0.5) | B (a=1.0) | B (a=2.0) |
+| --- | ---: | ---: | ---: | ---: |
+| Si | 0.091 | 0.146 | 0.292 | 0.666 |
+| C (diamond) | 0.185 | 0.234 | 0.365 | 0.700 |
+| AlAs | 0.125 | 0.178 | 0.318 | 0.678 |
+| MgO | 0.323 | 0.364 | 0.473 | 0.751 |
+| LiCl | 0.337 | 0.377 | 0.483 | 0.756 |
+| NaCl | 0.395 | 0.432 | 0.529 | 0.778 |
+| CaF₂ | 0.443 | 0.477 | 0.567 | 0.795 |
+| LiF | 0.490 | 0.521 | 0.603 | 0.812 |
+<!-- END:fgparams -->
+
+Band gaps for the three global `a` values, next to the two fixed-β models (eV):
+
+<!-- BEGIN:finiteg -->
+| material | gap type | expt | **DD-RSH-CAM** (β=1) | RS-DDH (β=¼) | finite-G a=0.5 | finite-G a=1.0 | finite-G a=2.0 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Si | indirect | 1.17 | **1.27** | 1.15 | 1.13 | 1.16 | 1.22 |
+| Si | direct Γ→Γ | 3.40 | **3.28** | 3.09 | 3.07 | 3.10 | 3.20 |
+| C (diamond) | indirect | 5.48 | **5.67** | 5.60 | 5.59 | 5.61 | 5.64 |
+| C (diamond) | direct Γ→Γ | 7.30 | **7.50** | 7.18 | 7.17 | 7.23 | 7.37 |
+| AlAs | indirect Γ→X | 2.23 | **2.19** | 2.05 | 2.04 | 2.06 | 2.13 |
+| AlAs | direct Γ→Γ | 3.13 | **2.86** | 2.71 | 2.70 | 2.73 | 2.80 |
+| MgO | direct Γ→Γ | 7.83 | **8.55** | 8.09 | 8.16 | 8.22 | 8.39 |
+| LiCl | direct Γ→Γ | 9.40 | **9.61** | 9.16 | 9.24 | 9.30 | 9.46 |
+| NaCl | direct Γ→Γ | 8.97 | **8.88** | 8.36 | 8.49 | 8.55 | 8.73 |
+| CaF₂ | indirect W→Γ | 11.80 | **13.15** | 12.03 | 12.36 | 12.49 | 12.84 |
+| CaF₂ | direct Γ→Γ | 12.10 | **13.42** | 12.31 | 12.64 | 12.77 | 13.11 |
+| LiF | direct Γ→Γ | 14.20 | **15.90** | 14.76 | 15.16 | 15.29 | 15.61 |
+<!-- END:finiteg -->
+
+Mean absolute error by model (overall and by material class):
+
+<!-- BEGIN:mae -->
+| model | MAE all (eV) | MAE ionic¹ | MAE covalent² |
+| --- | ---: | ---: | ---: |
+| DD-RSH-CAM (β=1) | 0.525 | 1.272 | 0.153 |
+| RS-DDH (β=¼) | 0.272 | 0.315 | 0.193 |
+| finite-G a=0.5 | 0.355 | 0.596 | 0.205 |
+| finite-G a=1.0 | 0.369 | 0.709 | 0.179 |
+| finite-G a=2.0 | 0.435 | 1.002 | 0.152 |
+
+¹ ionic = MgO, CaF₂, LiF (low-ε∞ strong-ionic wide-gap). ² covalent = Si, C, AlAs (covalent / III–V). MAE is over all listed edges (fundamental + direct Γ→Γ) where a value exists.
+<!-- END:mae -->
+
+<!-- BEGIN:fganalysis -->
+All 24 runs (8 materials × 3 `a`) completed; **no failures**. Gaps increase monotonically
+with `a` for every material (larger `a` ⇒ larger `B_a` ⇒ more short-range Fock ⇒ wider
+gap), so the three values cleanly bracket the fixed-β results.
+
+**Which `a` has the smallest overall MAE?** `a = 0.5` (0.355 eV), then `a = 1.0` (0.369),
+then `a = 2.0` (0.435). All three sit *between* DD-RSH-CAM (0.525) and RS-DDH (0.272): the
+flat β=¼ is still the best single model overall, and no global `a` beats it (see the
+mechanism note below).
+
+**Which `a` helps the low-ε∞ ionic crystals (MgO, CaF₂, LiF) most?** `a = 0.5`, by a clear
+margin: ionic MAE 0.596 (a=0.5) < 0.709 (a=1.0) < 1.002 (a=2.0). Smaller `a` ⇒ smaller
+`B_a` ⇒ less short-range Fock ⇒ less over-opening, monotonically.
+
+**Do they relieve the β=1 over-opening?** Yes — all three reduce it, most at `a = 0.5`
+(ionic MAE 1.272 → 0.596). Per edge at `a = 0.5`: MgO +0.72 → +0.33, CaF₂ direct
++1.32 → +0.54, CaF₂ indirect +1.35 → +0.56, LiF +1.70 → +0.96. The relief shrinks as `a`
+grows (LiF +0.96 → +1.09 → +1.41), since larger `a` pushes `B_a` back toward 1.
+
+**Do they under-open the covalent edges (Si, C, AlAs) less than β=¼?** Yes — best at
+`a = 2.0`, which restores most of the short-range Fock: covalent MAE 0.152 (a=2.0) vs 0.193
+(β=¼), matching β=1's 0.153. Per direct edge vs β=¼: Si Γ −0.31 → −0.20, AlAs Γ
+−0.42 → −0.33, C Γ −0.12 → +0.07.
+
+**Why no global `a` beats the flat β=¼.** `B_a = ε⁻¹(a·μ)` rises with `A = 1/ε∞`, so the
+finite-G prescription hands the *most* short-range Fock to the *most ionic* materials
+(at a=0.5: Si B=0.15 vs LiF B=0.52) — exactly the materials that over-open and want *less*.
+The material dependence is physically motivated (it is the literal dielectric screening at
+G = a·μ) but runs opposite to what the gap errors prefer, so it cannot simultaneously
+fix ionic over-opening and covalent under-opening with one constant. The practical takeaway
+is an interpolation knob: `a → small` reproduces β=¼-like (ionic-friendly) behaviour,
+`a → large` reproduces β=1-like (covalent-friendly) behaviour, and `a ≈ 0.5` is the best
+single compromise across this 8-material set.
+<!-- END:fganalysis -->
+
 ## Reproduce
 
 ```bash
@@ -146,6 +249,7 @@ scripts/run_material.sh AlAs               # DD-RSH-CAM (β=1) full pipeline (se
 QE_NP=4 OMP_NUM_THREADS=1 MPIRUN="mpirun --allow-run-as-root" \
   scripts/run_material.sh AlAs             #   ... the same under MPI (as root)
 scripts/run_rsddh.sh AlAs                  # RS-DDH (β=¼): reuses the fit, reruns hybrid SCF
+scripts/run_finiteg.sh AlAs 0.5            # finite-G (B_a = ε⁻¹(0.5·μ)); repeat for 1.0, 2.0
 python3 scripts/write_comparison.py --write  # regenerate the tables above
 ```
 
@@ -154,10 +258,11 @@ python3 scripts/write_comparison.py --write  # regenerate the tables above
 ```text
 config/materials.toml             per-material structure + run parameters (source of truth)
 runs/Si/  runs/C/  runs/AlAs/  runs/MgO/  runs/LiCl/  runs/NaCl/  runs/CaF2/  runs/LiF/
-                                  per-material PBE, eels, ddrshcam (β=1) + rsddh (β=¼) runs
+                                  PBE, eels, ddrshcam (β=1), rsddh (β=¼), finiteG_a{0.5,1.0,2.0}
 scripts/run_material.sh           DD-RSH-CAM driver (PBE→eels→scan→fit→ddrshcam)
 scripts/run_rsddh.sh              RS-DDH (β=0.25) driver — reuses the fit, reruns hybrid SCF
-scripts/gen_inputs.py             generate the QE inputs from materials.toml (--which rsddh)
+scripts/run_finiteg.sh            finite-G driver (B_a = ε⁻¹(a·μ)) — reuses the fit, per `a`
+scripts/gen_inputs.py             generate the QE inputs from materials.toml (--which finiteg --a)
 scripts/scan_eps_q.sh             generic turboEELS ε⁻¹(q) q-scan
 scripts/fit_mu.py                 fit (ε∞, μ) from eps_q.dat with parabolic refinement
 scripts/extract_gap.py            fundamental + Γ-direct gap from a pw.x .out

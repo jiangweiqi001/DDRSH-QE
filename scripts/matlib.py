@@ -49,6 +49,11 @@ def rsddh_out(name: str, mat: dict) -> Path:
     return run_dir(name) / rel
 
 
+def finiteg_out(name: str, mat: dict, a: float) -> Path:
+    """Finite-G model (bexx = ε⁻¹(a·μ)) hybrid output for global constant `a`."""
+    return run_dir(name) / f"p2/finiteG_a{a:.1f}" / f"{mat['prefix']}.fg.out"
+
+
 if __name__ == "__main__":
     mats = load_materials()
     print(f"{len(mats)} materials in {CONFIG.relative_to(ROOT)}:")

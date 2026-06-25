@@ -136,6 +136,53 @@ Fock is the knob trading ionic over-opening against covalent under-opening; the 
 limits remain bit-for-bit exact. Full per-edge errors and tolerances in
 [`results/EFT-ARPES-bench-comparison.md`](results/EFT-ARPES-bench-comparison.md).
 
+### Finite-G model (third class)
+
+Instead of a fixed short-range endpoint (β=1 or β=¼), the **finite-G model** reads the
+endpoint off the dielectric function at a finite wavevector `G = a·μ`, using the same
+single-μ kernel:
+
+```
+B_a = ε⁻¹(G = a·μ) = 1 − (1 − A)·exp(−a²/4),     A = aexx = 1/ε∞
+```
+
+Here `a` is a **single global constant** (the same for all materials — *not* tuned per
+material), while `B_a` is a **material-dependent** effective short-range Fock endpoint set
+by each material's own `A = 1/ε∞`. Limits: `a→0 ⇒ B_a→1` (recovers DD-RSH-CAM) and
+`a→∞ ⇒ B_a→A` (a global hybrid with a single 1/ε∞ fraction); for finite `a`,
+`A ≤ B_a ≤ 1`, and larger `a` ⇒ less short-range Fock. All 8 materials were run at
+`a = 0.5, 1.0, 2.0`, reusing the DD-RSH-CAM fit and re-running only the hybrid SCF
+(`scripts/run_finiteg.sh <Material> <a>`, output in `runs/<M>/p2/finiteG_a<a>/`, leaving
+the β=1 / β=¼ runs untouched). The second comparison table, per-material `B_a`, and the
+per-model MAE are in
+[`results/EFT-ARPES-bench-comparison.md`](results/EFT-ARPES-bench-comparison.md).
+
+All 24 runs (8 materials × `a = 0.5, 1.0, 2.0`) completed — no failures. Mean absolute
+error by model (over all 12 edges; ionic = MgO/CaF₂/LiF, covalent = Si/C/AlAs):
+
+| model | MAE all (eV) | MAE ionic | MAE covalent |
+| --- | ---: | ---: | ---: |
+| DD-RSH-CAM (β=1) | 0.525 | 1.272 | 0.153 |
+| RS-DDH (β=¼) | **0.272** | 0.315 | 0.193 |
+| finite-G a=0.5 | 0.355 | 0.596 | 0.205 |
+| finite-G a=1.0 | 0.369 | 0.709 | 0.179 |
+| finite-G a=2.0 | 0.435 | 1.002 | **0.152** |
+
+- **Smallest overall MAE among the three: `a = 0.5` (0.355 eV)**; all three lie between β=1
+  and β=¼, and none beats the flat β=¼ (0.272) overall.
+- **`a = 0.5` helps the low-ε∞ ionic crystals (MgO, CaF₂, LiF) most** (ionic MAE 0.596 vs
+  0.709 / 1.002): smaller `a` ⇒ smaller `B_a` ⇒ less short-range Fock ⇒ less over-opening.
+- **All three relieve the β=1 over-opening**, most at `a = 0.5` (e.g. LiF +1.70→+0.96, CaF₂
+  +1.32→+0.54, MgO +0.72→+0.33); the relief shrinks as `a` grows.
+- **`a = 2.0` under-opens the covalent edges least** (covalent MAE 0.152, matching β=1, vs
+  β=¼'s 0.193): e.g. Si Γ −0.31→−0.20, AlAs Γ −0.42→−0.33, C Γ −0.12→+0.07.
+- **Why no global `a` wins outright:** `B_a = ε⁻¹(a·μ)` *increases* with `A = 1/ε∞`, so it
+  gives the most short-range Fock to the most ionic materials — exactly the ones that want
+  less. The dependence is physical but opposite to what the gap errors prefer, so one
+  constant cannot fix ionic over-opening and covalent under-opening together. Net: `a` is an
+  interpolation knob (small → β=¼-like, large → β=1-like), with `a ≈ 0.5` the best
+  single compromise here.
+
 ## Directory layout
 
 ```text
@@ -148,7 +195,7 @@ runs/MgO/p2/ddrshcam/         strict DD-RSH-CAM production (mgo.nqx6.in)
 runs/MgO/p2/audit/            convergence audit inputs + run scripts
 runs/MgO/01-pbe-scf .. 04-dd-hse   earlier PBE / DDH / approximate-DD-HSE runs
 runs/Si/ runs/C/ runs/AlAs/ runs/LiCl/ runs/NaCl/ runs/CaF2/ runs/LiF/
-                              benchmark materials (PBE, eels, ddrshcam)
+                              benchmark materials (PBE, eels, ddrshcam, rsddh, finiteG_a*)
 pseudos/                      SG15 ONCV PBE norm-conserving pseudopotentials
 results/                      MgO-results.md, Si-results.md, EFT-ARPES-bench-comparison.md
 docs/                         implementation plan
@@ -165,8 +212,11 @@ Benchmark pipeline (driven by `config/materials.toml`, no hand-edited inputs):
   eels SCF → turboEELS scan → fit (ε∞, μ) → DD-RSH-CAM SCF → gaps.
 - `scripts/run_rsddh.sh <Material>` — **RS-DDH driver** (β=0.25, Skone 2016): reuses the
   turboEELS fit and only re-runs the hybrid SCF; writes to `runs/<M>/p2/rsddh/`.
-- `scripts/gen_inputs.py <Material> [--which rsddh] [--bexx B]` — generate QE inputs from
-  `materials.toml` (short-range Fock `bexx`: 1.0 for ddrshcam, 0.25 for rsddh).
+- `scripts/run_finiteg.sh <Material> <a>` — **finite-G driver**: reuses the fit, computes
+  `B_a = 1−(1−A)exp(−a²/4)`, re-runs the hybrid SCF; writes to `runs/<M>/p2/finiteG_a<a>/`.
+- `scripts/gen_inputs.py <Material> [--which rsddh|finiteg --a A] [--bexx B]` — generate QE
+  inputs from `materials.toml` (short-range Fock `bexx`: 1.0 for ddrshcam, 0.25 for rsddh,
+  `B_a` for finiteg).
 - `scripts/scan_eps_q.sh <prefix> <alat_bohr> <eels_dir>` — generic turboEELS ε⁻¹(q) scan.
 - `scripts/fit_mu.py <eps_q.dat>` — fit ε∞ and μ (parabolic-refined, numpy only).
 - `scripts/extract_gap.py <pw.out>` — fundamental + Γ-direct gap from a pw.x output.
