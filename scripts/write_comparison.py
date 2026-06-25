@@ -11,11 +11,13 @@ The three tables (fit parameters, band gaps, verdict) are computed from:
   * runs/<M>/p2/finiteG_a*/*.fg.out  -- finite-G (bexx=B_a) gaps for a=0.5,1.0,2.0, if present
 
 So the prose stays hand-written but every NUMBER is derived from the actual runs and
-cannot drift. Tables are spliced between <!-- BEGIN:x -->/<!-- END:x --> markers.
+cannot drift. Tables are spliced between <!-- BEGIN:x -->/<!-- END:x --> markers in the
+comparison .md (params, gaps, verdict, fgparams, finiteg, mae) and in README.md (full:
+the complete PBE + 5-model + literature table).
 
 Usage:
-    python3 write_comparison.py            # print the three tables
-    python3 write_comparison.py --write    # splice them into the comparison .md
+    python3 write_comparison.py            # print all tables
+    python3 write_comparison.py --write    # splice them into the comparison .md + README
 """
 
 from __future__ import annotations
@@ -36,6 +38,7 @@ from matlib import (  # noqa: E402
 )
 
 DOC = ROOT / "results" / "EFT-ARPES-bench-comparison.md"
+README = ROOT / "README.md"
 DISPLAY = {"C": "C (diamond)", "CaF2": "CaF₂"}
 APPROX_REF = {"CaF2"}  # GW/HSE/PBE0 entries are bench estimates -> prefix "~"
 FG_AS = (0.5, 1.0, 2.0)              # finite-G global constants
@@ -277,10 +280,37 @@ def table_mae(rows) -> str:
     return "\n".join(out)
 
 
+def table_full(rows) -> str:
+    """Complete per-edge results: PBE baseline + all five computed models + literature."""
+    out = [
+        "| material | gap type | PBE | **DD-RSH-CAM** β=1 | RS-DDH β=¼ | finite-G a=0.5 | "
+        "finite-G a=1.0 | finite-G a=2.0 | expt | G₀W₀ | HSE06 | PBE0 |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for name, r in rows.items():
+        m = r["mat"]
+        edges = m["edges"]
+        fund_kind = "indirect" if "indirect" in edges else "direct"
+        pre = "~" if name in APPROX_REF else ""
+        for kind in edges:
+            ref = BENCHMARK[name]["edges"][kind]
+            pbe = r["pbe_fund"] if kind == fund_kind else r["pbe_direct"]
+            ddh = model_gap(r, "ddh", kind, fund_kind)
+            rs = model_gap(r, "rs", kind, fund_kind)
+            fg = [model_gap(r, a, kind, fund_kind) for a in FG_AS]
+            out.append(
+                f"| {disp(name)} | {edge_label(name, kind)} | {fnum(pbe)} | "
+                f"**{fnum(ddh)}** | {fnum(rs)} | {fnum(fg[0])} | {fnum(fg[1])} | {fnum(fg[2])} | "
+                f"{fnum(ref['expt'])} | {ref_fmt(ref['gw'], pre)} | "
+                f"{ref_fmt(ref['hse06'], pre)} | {ref_fmt(ref['pbe0'], pre)} |"
+            )
+    return "\n".join(out)
+
+
 def splice(text: str, tag: str, body: str) -> str:
     a, b = f"<!-- BEGIN:{tag} -->", f"<!-- END:{tag} -->"
     if a not in text or b not in text:
-        raise SystemExit(f"marker {a}/{b} not found in {DOC}")
+        raise SystemExit(f"marker {a}/{b} not found")
     pre, rest = text.split(a, 1)
     _, post = rest.split(b, 1)
     return f"{pre}{a}\n{body}\n{b}{post}"
@@ -299,8 +329,9 @@ def main() -> None:
         "finiteg": table_finiteg(rows),
         "mae": table_mae(rows),
     }
+    readme_tables = {"full": table_full(rows)}
     if not args.write:
-        for tag, body in tables.items():
+        for tag, body in {**tables, **readme_tables}.items():
             print(f"\n===== {tag} =====\n{body}")
         return
     text = DOC.read_text()
@@ -308,6 +339,11 @@ def main() -> None:
         text = splice(text, tag, body)
     DOC.write_text(text)
     print(f"updated {DOC.relative_to(ROOT)}")
+    rtext = README.read_text()
+    for tag, body in readme_tables.items():
+        rtext = splice(rtext, tag, body)
+    README.write_text(rtext)
+    print(f"updated {README.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":
