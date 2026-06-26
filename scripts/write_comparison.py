@@ -23,6 +23,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import math
 import sys
 from pathlib import Path
 
@@ -256,25 +257,45 @@ def table_fgparams(rows) -> str:
     return "\n".join(out)
 
 
+def inv_q(aexx: float, mu: float, bexx: float) -> float | None:
+    """Sampling wavevector q* (bohr⁻¹) with ε⁻¹(q*) = bexx under ε⁻¹(q)=1−(1−A)exp(−q²/4μ²).
+    Returns None when bexx ∉ (A, 1): bexx ≤ A means it lies on/below the fully-screened floor
+    ε⁻¹(0)=A (no real q), bexx ≥ 1 is the q→∞ limit."""
+    if not (aexx < bexx < 1.0):
+        return None
+    return 2.0 * mu * math.sqrt(math.log((1.0 - aexx) / (1.0 - bexx)))
+
+
 def table_qcparams(rows) -> str:
-    """Density-scale endpoint inputs: average-valence-density wavevector q_WS and the
-    sampling wavevector q_cloud = η·q_WS (bohr⁻¹; the short-range screening length scale)
-    with the resulting B_η, for each global η."""
+    """Density inputs + the sampling wavevector q (bohr⁻¹) finally fed to ε⁻¹ to set each
+    model's short-range endpoint, for every material and case: RS-DDH (β=¼, 2nd class),
+    finite-G (a=0.5/1.0/2.0, 3rd class) and qcloud (η=0.5/0.6/1.0, 4th class)."""
     out = [
         "| material | N_val | Ω (bohr³) | n_v (bohr⁻³) | q_WS (bohr⁻¹) | μ (bohr⁻¹) | "
-        "q_WS/μ | q_cloud η=0.5 | B (η=0.5) | q_cloud η=0.6 | B (η=0.6) | "
-        "q_cloud η=1.0 | B (η=1.0) |",
+        "RS-DDH β=¼ | finite-G a=0.5 | finite-G a=1.0 | finite-G a=2.0 | "
+        "qcloud η=0.5 | qcloud η=0.6 | qcloud η=1.0 |",
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | "
         "---: | ---: |",
     ]
     for name, r in rows.items():
-        cells = " | ".join(
-            f"{r['qc'][e]['q_cloud']:.3f} | {r['qc'][e]['bexx']:.3f}" for e in ETAS
-        )
+        A, mu = r["aexx"], r["mu"]
+        q_rs = inv_q(A, mu, 0.25)
+        fg_q = " | ".join(f"{a * mu:.3f}" for a in FG_AS)
+        qc_q = " | ".join(f"{r['qc'][e]['q_cloud']:.3f}" for e in ETAS)
         out.append(
             f"| {disp(name)} | {r['nval']:g} | {r['vol']:.2f} | {r['n_v']:.4f} | "
-            f"{r['q_ws']:.4f} | {r['mu']:.3f} | {r['q_ws'] / r['mu']:.3f} | {cells} |"
+            f"{r['q_ws']:.4f} | {mu:.3f} | {fnum(q_rs, 3)} | {fg_q} | {qc_q} |"
         )
+    out.append("")
+    out.append(
+        "All model columns are the sampling wavevector q (bohr⁻¹) at which ε⁻¹(q) equals that "
+        "model's short-range endpoint bexx (under ε⁻¹(q)=1−(1−A)exp(−q²/4μ²)): "
+        "**finite-G** q = a·μ, **qcloud** q = η·q_WS (DD-RSH-CAM β=1 ⇒ q→∞, not shown). "
+        "**RS-DDH β=¼** is “—” when 0.25 ≤ A = 1/ε∞: the fixed ¼ then lies on/below the "
+        "fully-screened floor ε⁻¹(0)=A, so no real wavevector reproduces it (all the ionic "
+        "crystals — MgO, LiCl, NaCl, CaF₂, LiF). The corresponding endpoints bexx=B are in "
+        "the gap tables (RS-DDH = 0.25; finite-G B_a; qcloud B_η)."
+    )
     return "\n".join(out)
 
 

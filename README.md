@@ -237,20 +237,24 @@ hybrid SCF (`scripts/run_density_qcloud.sh <Material> <η>`, output in
 `runs/<M>/p2/qcloud_eta<η>/`, leaving the β=1 / β=¼ / finite-G runs untouched). The endpoint
 diagnostic (no QE) is `scripts/diag_qcloud.py`. Every material satisfies `A ≤ B_η ≤ 1`.
 
-Density inputs and the **sampling length** `q_cloud = η·q_WS` (bohr⁻¹) used to read each
-endpoint off ε⁻¹(q):
+Density inputs and the **sampling wavevector** q (bohr⁻¹) finally fed to ε⁻¹ to set the
+short-range endpoint, for every material and case across the 2nd–4th classes — RS-DDH (β=¼),
+finite-G (q=a·μ) and qcloud (q=η·q_WS). RS-DDH shows “—” for the ionic crystals because the
+fixed ¼ falls below the fully-screened floor ε⁻¹(0)=A, so no real wavevector reproduces it:
 
 <!-- BEGIN:qcparams -->
-| material | N_val | Ω (bohr³) | n_v (bohr⁻³) | q_WS (bohr⁻¹) | μ (bohr⁻¹) | q_WS/μ | q_cloud η=0.5 | B (η=0.5) | q_cloud η=0.6 | B (η=0.6) | q_cloud η=1.0 | B (η=1.0) |
+| material | N_val | Ω (bohr³) | n_v (bohr⁻³) | q_WS (bohr⁻¹) | μ (bohr⁻¹) | RS-DDH β=¼ | finite-G a=0.5 | finite-G a=1.0 | finite-G a=2.0 | qcloud η=0.5 | qcloud η=0.6 | qcloud η=1.0 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Si | 8 | 270.25 | 0.0296 | 0.4987 | 0.657 | 0.759 | 0.249 | 0.123 | 0.299 | 0.137 | 0.499 | 0.213 |
-| C (diamond) | 8 | 76.58 | 0.1045 | 0.7592 | 0.901 | 0.843 | 0.380 | 0.220 | 0.456 | 0.236 | 0.759 | 0.318 |
-| AlAs | 16 | 305.92 | 0.0523 | 0.6028 | 0.605 | 0.996 | 0.301 | 0.177 | 0.362 | 0.199 | 0.603 | 0.317 |
-| MgO | 16 | 123.75 | 0.1293 | 0.8151 | 0.726 | 1.123 | 0.408 | 0.375 | 0.489 | 0.396 | 0.815 | 0.506 |
-| LiCl | 10 | 224.59 | 0.0445 | 0.5713 | 0.633 | 0.903 | 0.286 | 0.369 | 0.343 | 0.383 | 0.571 | 0.459 |
-| NaCl | 16 | 295.48 | 0.0541 | 0.6099 | 0.594 | 1.027 | 0.305 | 0.434 | 0.366 | 0.450 | 0.610 | 0.535 |
-| CaF₂ | 24 | 275.02 | 0.0873 | 0.7150 | 0.714 | 1.002 | 0.358 | 0.477 | 0.429 | 0.492 | 0.715 | 0.567 |
-| LiF | 10 | 109.96 | 0.0909 | 0.7249 | 0.725 | 1.000 | 0.362 | 0.521 | 0.435 | 0.534 | 0.725 | 0.603 |
+| Si | 8 | 270.25 | 0.0296 | 0.4987 | 0.657 | 0.576 | 0.329 | 0.657 | 1.314 | 0.249 | 0.299 | 0.499 |
+| C (diamond) | 8 | 76.58 | 0.1045 | 0.7592 | 0.901 | 0.519 | 0.450 | 0.901 | 1.801 | 0.380 | 0.456 | 0.759 |
+| AlAs | 16 | 305.92 | 0.0523 | 0.6028 | 0.605 | 0.476 | 0.303 | 0.605 | 1.211 | 0.301 | 0.362 | 0.603 |
+| MgO | 16 | 123.75 | 0.1293 | 0.8151 | 0.726 | — | 0.363 | 0.726 | 1.452 | 0.408 | 0.489 | 0.815 |
+| LiCl | 10 | 224.59 | 0.0445 | 0.5713 | 0.633 | — | 0.317 | 0.633 | 1.266 | 0.286 | 0.343 | 0.571 |
+| NaCl | 16 | 295.48 | 0.0541 | 0.6099 | 0.594 | — | 0.297 | 0.594 | 1.188 | 0.305 | 0.366 | 0.610 |
+| CaF₂ | 24 | 275.02 | 0.0873 | 0.7150 | 0.714 | — | 0.357 | 0.714 | 1.427 | 0.358 | 0.429 | 0.715 |
+| LiF | 10 | 109.96 | 0.0909 | 0.7249 | 0.725 | — | 0.362 | 0.725 | 1.450 | 0.362 | 0.435 | 0.725 |
+
+All model columns are the sampling wavevector q (bohr⁻¹) at which ε⁻¹(q) equals that model's short-range endpoint bexx (under ε⁻¹(q)=1−(1−A)exp(−q²/4μ²)): **finite-G** q = a·μ, **qcloud** q = η·q_WS (DD-RSH-CAM β=1 ⇒ q→∞, not shown). **RS-DDH β=¼** is “—” when 0.25 ≤ A = 1/ε∞: the fixed ¼ then lies on/below the fully-screened floor ε⁻¹(0)=A, so no real wavevector reproduces it (all the ionic crystals — MgO, LiCl, NaCl, CaF₂, LiF). The corresponding endpoints bexx=B are in the gap tables (RS-DDH = 0.25; finite-G B_a; qcloud B_η).
 <!-- END:qcparams -->
 
 Fourth table — qcloud `bexx`, gap and error per η, next to expt, β=1 and β=¼ (`q_cloud`
