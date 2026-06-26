@@ -20,7 +20,7 @@ import argparse
 import math
 from pathlib import Path
 
-from matlib import ROOT, load_materials
+from matlib import ROOT, eta_tag, load_materials, pbe_density
 
 BOHR = 0.529177210903
 
@@ -173,10 +173,35 @@ def finiteg_input(mat: dict, aexx: str, hfscreen: str, a: float) -> str:
     return hybrid_input(mat, f"{float(aexx):.4f}", hfscreen, f"{bexx:.4f}", "fg", "./out_fg")
 
 
-def _dest(name: str, mat: dict, which: str, a: float | None = None) -> Path:
+def q_ws(nval: float, vol_bohr3: float) -> float:
+    """Average-valence-density wavevector q_WS = (4π n_v/3)^(1/3), n_v = N_val/Ω (bohr⁻¹)."""
+    n_v = nval / vol_bohr3
+    return (4.0 * math.pi * n_v / 3.0) ** (1.0 / 3.0)
+
+
+def qcloud_bexx(aexx: float, mu: float, qws: float, eta: float) -> float:
+    """Density-scale endpoint B_η = ε⁻¹(q_cloud), q_cloud = η·q_WS, under the single-μ
+    model ε⁻¹(q) = 1 − (1−A)·exp(−q²/4μ²)."""
+    q_cloud = eta * qws
+    return 1.0 - (1.0 - aexx) * math.exp(-(q_cloud ** 2) / (4.0 * mu ** 2))
+
+
+def qcloud_input(mat: dict, name: str, aexx: str, hfscreen: str, eta: float) -> str:
+    """Density-scale finite-q model: short-range endpoint bexx = ε⁻¹(η·q_WS), with q_WS
+    from the cell's average valence density (N_val, Ω parsed from the PBE SCF output)."""
+    nval, vol = pbe_density(name, mat)
+    qws = q_ws(nval, vol)
+    bexx = qcloud_bexx(float(aexx), float(hfscreen), qws, eta)
+    return hybrid_input(mat, f"{float(aexx):.4f}", hfscreen, f"{bexx:.4f}", "qc", "./out_qc")
+
+
+def _dest(name: str, mat: dict, which: str, a: float | None = None,
+          eta: float | None = None) -> Path:
     p = mat["prefix"]
     if which == "finiteg":
         return ROOT / "runs" / name / "p2" / f"finiteG_a{a:.1f}" / f"{p}.fg.in"
+    if which == "qcloud":
+        return ROOT / "runs" / name / "p2" / f"qcloud_eta{eta_tag(eta)}" / f"{p}.qc.in"
     return {
         "pbe": ROOT / "runs" / name / "01-pbe-scf" / f"{p}.scf.in",
         "eels": ROOT / "runs" / name / "p2" / "eels" / f"{p}.scf.in",
@@ -189,7 +214,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("material")
     ap.add_argument("--which",
-                    choices=["pbe", "eels", "ddrshcam", "rsddh", "finiteg", "all"],
+                    choices=["pbe", "eels", "ddrshcam", "rsddh", "finiteg", "qcloud", "all"],
                     default="all")
     ap.add_argument("--aexx", default="AEXX_PLACEHOLDER")
     ap.add_argument("--hfscreen", default="HFSCREEN_PLACEHOLDER")
@@ -197,6 +222,8 @@ def main() -> None:
                     help="short-range Fock fraction (default 1.0 for ddrshcam, 0.25 for rsddh)")
     ap.add_argument("--a", type=float, default=None,
                     help="finite-G constant a (B_a = 1-(1-A)exp(-a^2/4)); required for finiteg")
+    ap.add_argument("--eta", type=float, default=None,
+                    help="density-scale constant η (q_cloud = η·q_WS); required for qcloud")
     ap.add_argument("--stdout", action="store_true", help="print instead of writing files")
     args = ap.parse_args()
 
@@ -207,6 +234,8 @@ def main() -> None:
 
     if args.which == "finiteg" and args.a is None:
         ap.error("--which finiteg requires --a")
+    if args.which == "qcloud" and args.eta is None:
+        ap.error("--which qcloud requires --eta")
 
     builders = {
         "pbe": lambda: pbe_input(mat),
@@ -214,6 +243,7 @@ def main() -> None:
         "ddrshcam": lambda: ddrshcam_input(mat, args.aexx, args.hfscreen, args.bexx or "1.0"),
         "rsddh": lambda: rsddh_input(mat, args.aexx, args.hfscreen, args.bexx or "0.25"),
         "finiteg": lambda: finiteg_input(mat, args.aexx, args.hfscreen, args.a),
+        "qcloud": lambda: qcloud_input(mat, args.material, args.aexx, args.hfscreen, args.eta),
     }
     which = ["pbe", "eels", "ddrshcam"] if args.which == "all" else [args.which]
     for w in which:
@@ -221,7 +251,7 @@ def main() -> None:
         if args.stdout:
             print(f"===== {w} =====\n{content}")
             continue
-        dest = _dest(args.material, mat, w, args.a)
+        dest = _dest(args.material, mat, w, args.a, args.eta)
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(content)
         print(f"wrote {dest.relative_to(ROOT)}")

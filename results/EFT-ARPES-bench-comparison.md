@@ -161,16 +161,16 @@ not touch the β=1 / β=¼ runs.
 Endpoints actually used (derived from each material's A):
 
 <!-- BEGIN:fgparams -->
-| material | A = 1/ε∞ | B (a=0.5) | B (a=1.0) | B (a=2.0) |
-| --- | ---: | ---: | ---: | ---: |
-| Si | 0.091 | 0.146 | 0.292 | 0.666 |
-| C (diamond) | 0.185 | 0.234 | 0.365 | 0.700 |
-| AlAs | 0.125 | 0.178 | 0.318 | 0.678 |
-| MgO | 0.323 | 0.364 | 0.473 | 0.751 |
-| LiCl | 0.337 | 0.377 | 0.483 | 0.756 |
-| NaCl | 0.395 | 0.432 | 0.529 | 0.778 |
-| CaF₂ | 0.443 | 0.477 | 0.567 | 0.795 |
-| LiF | 0.490 | 0.521 | 0.603 | 0.812 |
+| material | A = 1/ε∞ | μ (bohr⁻¹) | G=0.5·μ | B (a=0.5) | G=1.0·μ | B (a=1.0) | G=2.0·μ | B (a=2.0) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Si | 0.091 | 0.657 | 0.329 | 0.146 | 0.657 | 0.292 | 1.314 | 0.666 |
+| C (diamond) | 0.185 | 0.901 | 0.450 | 0.234 | 0.901 | 0.365 | 1.801 | 0.700 |
+| AlAs | 0.125 | 0.605 | 0.303 | 0.178 | 0.605 | 0.318 | 1.211 | 0.678 |
+| MgO | 0.323 | 0.726 | 0.363 | 0.364 | 0.726 | 0.473 | 1.452 | 0.751 |
+| LiCl | 0.337 | 0.633 | 0.317 | 0.377 | 0.633 | 0.483 | 1.266 | 0.756 |
+| NaCl | 0.395 | 0.594 | 0.297 | 0.432 | 0.594 | 0.529 | 1.188 | 0.778 |
+| CaF₂ | 0.443 | 0.714 | 0.357 | 0.477 | 0.714 | 0.567 | 1.427 | 0.795 |
+| LiF | 0.490 | 0.725 | 0.362 | 0.521 | 0.725 | 0.603 | 1.450 | 0.812 |
 <!-- END:fgparams -->
 
 Band gaps for the three global `a` values, next to the two fixed-β models (eV):
@@ -202,6 +202,9 @@ Mean absolute error by model (overall and by material class):
 | finite-G a=0.5 | 0.355 | 0.596 | 0.205 |
 | finite-G a=1.0 | 0.369 | 0.709 | 0.179 |
 | finite-G a=2.0 | 0.435 | 1.002 | 0.152 |
+| qcloud η=0.5 | 0.357 | 0.598 | 0.208 |
+| qcloud η=0.6 | 0.360 | 0.616 | 0.204 |
+| qcloud η=1.0 | 0.376 | 0.714 | 0.187 |
 
 ¹ ionic = MgO, CaF₂, LiF (low-ε∞ strong-ionic wide-gap). ² covalent = Si, C, AlAs (covalent / III–V). MAE is over all listed edges (fundamental + direct Γ→Γ) where a value exists.
 <!-- END:mae -->
@@ -241,6 +244,90 @@ is an interpolation knob: `a → small` reproduces β=¼-like (ionic-friendly) b
 single compromise across this 8-material set.
 <!-- END:fganalysis -->
 
+## Density-scale finite-q model (fourth class: endpoint from valence density)
+
+Finite-G samples ε⁻¹ at `G = a·μ`. The **density-scale** model instead samples it at a
+wavevector set by the cell's average valence-electron density, so the short-range length
+scale is fixed by the electron cloud rather than by the screening parameter μ:
+
+```
+q_WS    = (4π n_v / 3)^(1/3),   n_v = N_val / Ω        (bohr⁻¹; N_val, Ω from the PBE run)
+q_cloud = η · q_WS
+B_η     = ε⁻¹(q_cloud) = 1 − (1 − A)·exp[ −(η·q_WS)² / (4 μ²) ],   A = 1/ε∞,  μ = hfscreen
+```
+
+`η` is a single **global** constant (no per-material tuning, no gap fitting); `B_η` is
+material-dependent through `A`, `μ` and the density. All 8 materials were run at
+`η = 0.5, 0.6, 1.0` (`scripts/run_density_qcloud.sh <M> <η>`), reusing the DD-RSH-CAM fit
+and re-running only the hybrid SCF into `runs/<M>/p2/qcloud_eta<η>/`. The diagnostic
+`scripts/diag_qcloud.py` prints this table without launching QE; every material satisfies
+`A ≤ B_η ≤ 1`.
+
+Density inputs and the sampling wavevector `q_cloud = η·q_WS` (bohr⁻¹) — the short-range
+screening length scale used to obtain each `B_η`:
+
+<!-- BEGIN:qcparams -->
+| material | N_val | Ω (bohr³) | n_v (bohr⁻³) | q_WS (bohr⁻¹) | μ (bohr⁻¹) | q_WS/μ | q_cloud η=0.5 | B (η=0.5) | q_cloud η=0.6 | B (η=0.6) | q_cloud η=1.0 | B (η=1.0) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Si | 8 | 270.25 | 0.0296 | 0.4987 | 0.657 | 0.759 | 0.249 | 0.123 | 0.299 | 0.137 | 0.499 | 0.213 |
+| C (diamond) | 8 | 76.58 | 0.1045 | 0.7592 | 0.901 | 0.843 | 0.380 | 0.220 | 0.456 | 0.236 | 0.759 | 0.318 |
+| AlAs | 16 | 305.92 | 0.0523 | 0.6028 | 0.605 | 0.996 | 0.301 | 0.177 | 0.362 | 0.199 | 0.603 | 0.317 |
+| MgO | 16 | 123.75 | 0.1293 | 0.8151 | 0.726 | 1.123 | 0.408 | 0.375 | 0.489 | 0.396 | 0.815 | 0.506 |
+| LiCl | 10 | 224.59 | 0.0445 | 0.5713 | 0.633 | 0.903 | 0.286 | 0.369 | 0.343 | 0.383 | 0.571 | 0.459 |
+| NaCl | 16 | 295.48 | 0.0541 | 0.6099 | 0.594 | 1.027 | 0.305 | 0.434 | 0.366 | 0.450 | 0.610 | 0.535 |
+| CaF₂ | 24 | 275.02 | 0.0873 | 0.7150 | 0.714 | 1.002 | 0.358 | 0.477 | 0.429 | 0.492 | 0.715 | 0.567 |
+| LiF | 10 | 109.96 | 0.0909 | 0.7249 | 0.725 | 1.000 | 0.362 | 0.521 | 0.435 | 0.534 | 0.725 | 0.603 |
+<!-- END:qcparams -->
+
+Gaps, `bexx` and errors for the three global `η`, next to expt / β=1 / β=¼ (the `q_cloud`
+length for each result is the matching column in the table above):
+
+<!-- BEGIN:qcloud -->
+| material | gap type | expt | **DD-RSH-CAM** β=1 | RS-DDH β=¼ | qcloud η=0.5 bexx | qcloud η=0.5 gap | err η=0.5 | qcloud η=0.6 bexx | qcloud η=0.6 gap | err η=0.6 | qcloud η=1.0 bexx | qcloud η=1.0 gap | err η=1.0 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Si | indirect | 1.17 | **1.27** | 1.15 | 0.123 | 1.13 | −0.04 | 0.137 | 1.13 | −0.04 | 0.213 | 1.14 | −0.03 |
+| Si | direct Γ→Γ | 3.40 | **3.28** | 3.09 | 0.123 | 3.06 | −0.34 | 0.137 | 3.07 | −0.33 | 0.213 | 3.08 | −0.32 |
+| C (diamond) | indirect | 5.48 | **5.67** | 5.60 | 0.220 | 5.59 | +0.11 | 0.236 | 5.59 | +0.11 | 0.318 | 5.60 | +0.12 |
+| C (diamond) | direct Γ→Γ | 7.30 | **7.50** | 7.18 | 0.220 | 7.17 | −0.13 | 0.236 | 7.17 | −0.13 | 0.318 | 7.21 | −0.09 |
+| AlAs | indirect Γ→X | 2.23 | **2.19** | 2.05 | 0.177 | 2.04 | −0.19 | 0.199 | 2.04 | −0.19 | 0.317 | 2.06 | −0.17 |
+| AlAs | direct Γ→Γ | 3.13 | **2.86** | 2.71 | 0.177 | 2.70 | −0.43 | 0.199 | 2.71 | −0.42 | 0.317 | 2.73 | −0.40 |
+| MgO | direct Γ→Γ | 7.83 | **8.55** | 8.09 | 0.375 | 8.16 | +0.33 | 0.396 | 8.17 | +0.34 | 0.506 | 8.24 | +0.41 |
+| LiCl | direct Γ→Γ | 9.40 | **9.61** | 9.16 | 0.369 | 9.23 | −0.17 | 0.383 | 9.24 | −0.16 | 0.459 | 9.28 | −0.12 |
+| NaCl | direct Γ→Γ | 8.97 | **8.88** | 8.36 | 0.434 | 8.49 | −0.48 | 0.450 | 8.50 | −0.47 | 0.535 | 8.56 | −0.41 |
+| CaF₂ | indirect W→Γ | 11.80 | **13.15** | 12.03 | 0.477 | 12.36 | +0.56 | 0.492 | 12.38 | +0.58 | 0.567 | 12.49 | +0.69 |
+| CaF₂ | direct Γ→Γ | 12.10 | **13.42** | 12.31 | 0.477 | 12.64 | +0.54 | 0.492 | 12.66 | +0.56 | 0.567 | 12.77 | +0.67 |
+| LiF | direct Γ→Γ | 14.20 | **15.90** | 14.76 | 0.521 | 15.16 | +0.96 | 0.534 | 15.18 | +0.98 | 0.603 | 15.29 | +1.09 |
+<!-- END:qcloud -->
+
+<!-- BEGIN:qcanalysis -->
+All 24 runs (8 materials × 3 η) completed; **no failures**. Gaps increase monotonically
+with η (larger η ⇒ larger q_cloud ⇒ larger B_η ⇒ more short-range Fock ⇒ wider gap).
+
+**Smallest overall MAE:** η=0.5 (0.357 eV) < η=0.6 (0.360) < η=1.0 (0.376). **Smallest
+ionic MAE (MgO, CaF₂, LiF):** η=0.5 (0.598) < η=0.6 (0.616) < η=1.0 (0.714). **Smallest
+covalent MAE (Si, C, AlAs):** η=1.0 (0.187) < η=0.6 (0.204) < η=0.5 (0.208). Same split as
+finite-G: a smaller sampling wavevector helps the ionic crystals, a larger one helps the
+covalent ones.
+
+**Relieves the β=1 over-opening?** Yes — strongly, most at η=0.5: ionic MAE 1.272 → 0.598.
+Per edge at η=0.5: MgO +0.72 → +0.33, CaF₂ direct +1.32 → +0.54, CaF₂ indirect +1.35 →
++0.56, LiF +1.70 → +0.96.
+
+**Beats RS-DDH (β=¼)?** No. The flat β=¼ is better both overall (0.272 vs 0.357) and on the
+ionic set (0.315 vs 0.598). On the covalent set η=1.0 (0.187) edges past β=¼ (0.193), but
+that is a small margin and η=1.0 is the worst η overall.
+
+**Better than finite-G a=0.5?** No — they are statistically identical (overall 0.357 vs
+0.355; ionic 0.598 vs 0.596; covalent 0.208 vs 0.205). The reason is structural: here
+`q_WS/μ ≈ 0.76–1.12` (see the params table), i.e. the average-density wavevector q_WS is
+within ~±15 % of μ for every material, so `q_cloud = η·q_WS ≈ η·μ = G` and the density-scale
+model samples ε⁻¹ at essentially the same wavevector as finite-G with a ≈ η. The two
+prescriptions therefore coincide for this set, and qcloud inherits the same limitation:
+`B_η` still *rises* with A = 1/ε∞ (the most ionic materials get the most short-range Fock —
+the wrong direction), so tying the length to the valence density rather than to μ does not
+add discriminating power here, and no global η beats the flat β=¼.
+<!-- END:qcanalysis -->
+
 ## Reproduce
 
 ```bash
@@ -250,6 +337,8 @@ QE_NP=4 OMP_NUM_THREADS=1 MPIRUN="mpirun --allow-run-as-root" \
   scripts/run_material.sh AlAs             #   ... the same under MPI (as root)
 scripts/run_rsddh.sh AlAs                  # RS-DDH (β=¼): reuses the fit, reruns hybrid SCF
 scripts/run_finiteg.sh AlAs 0.5            # finite-G (B_a = ε⁻¹(0.5·μ)); repeat for 1.0, 2.0
+python3 scripts/diag_qcloud.py             # density-scale endpoint table (no QE) + A≤B≤1 check
+scripts/run_density_qcloud.sh AlAs 0.5     # density-scale (B_η = ε⁻¹(0.5·q_WS)); also 0.6, 1.0
 python3 scripts/write_comparison.py --write  # regenerate the tables above
 ```
 
@@ -258,11 +347,13 @@ python3 scripts/write_comparison.py --write  # regenerate the tables above
 ```text
 config/materials.toml             per-material structure + run parameters (source of truth)
 runs/Si/  runs/C/  runs/AlAs/  runs/MgO/  runs/LiCl/  runs/NaCl/  runs/CaF2/  runs/LiF/
-                                  PBE, eels, ddrshcam (β=1), rsddh (β=¼), finiteG_a{0.5,1.0,2.0}
+            PBE, eels, ddrshcam (β=1), rsddh (β=¼), finiteG_a{0.5,1.0,2.0}, qcloud_eta{0p5,0p6,1p0}
 scripts/run_material.sh           DD-RSH-CAM driver (PBE→eels→scan→fit→ddrshcam)
 scripts/run_rsddh.sh              RS-DDH (β=0.25) driver — reuses the fit, reruns hybrid SCF
 scripts/run_finiteg.sh            finite-G driver (B_a = ε⁻¹(a·μ)) — reuses the fit, per `a`
-scripts/gen_inputs.py             generate the QE inputs from materials.toml (--which finiteg --a)
+scripts/run_density_qcloud.sh     density-scale driver (B_η = ε⁻¹(η·q_WS)) — reuses fit + density
+scripts/diag_qcloud.py            density-scale endpoint table (no QE) + A≤B_η≤1 check
+scripts/gen_inputs.py             generate the QE inputs from materials.toml (--which qcloud --eta)
 scripts/scan_eps_q.sh             generic turboEELS ε⁻¹(q) q-scan
 scripts/fit_mu.py                 fit (ε∞, μ) from eps_q.dat with parabolic refinement
 scripts/extract_gap.py            fundamental + Γ-direct gap from a pw.x .out

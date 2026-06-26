@@ -31,10 +31,11 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from extract_gap import parse_gaps  # noqa: E402
 from fit_mu import best_A, parabolic_vertex  # noqa: E402
-from gen_inputs import finiteg_bexx  # noqa: E402
+from gen_inputs import finiteg_bexx, q_ws, qcloud_bexx  # noqa: E402
 from literature import BENCHMARK  # noqa: E402
 from matlib import (  # noqa: E402
-    ROOT, ddrshcam_out, eels_data, finiteg_out, load_materials, pbe_out, rsddh_out,
+    ROOT, ddrshcam_out, eels_data, finiteg_out, load_materials, pbe_density,
+    pbe_out, qcloud_out, rsddh_out,
 )
 
 DOC = ROOT / "results" / "EFT-ARPES-bench-comparison.md"
@@ -42,6 +43,7 @@ README = ROOT / "README.md"
 DISPLAY = {"C": "C (diamond)", "CaF2": "CaF₂"}
 APPROX_REF = {"CaF2"}  # GW/HSE/PBE0 entries are bench estimates -> prefix "~"
 FG_AS = (0.5, 1.0, 2.0)              # finite-G global constants
+ETAS = (0.5, 0.6, 1.0)              # density-scale (qcloud) global constants
 IONIC = {"MgO", "CaF2", "LiF"}      # low-ε∞ strong-ionic wide-gap
 COVAL = {"Si", "C", "AlAs"}         # covalent / III-V
 
@@ -103,24 +105,41 @@ def collect() -> dict[str, dict]:
                 "direct": g["gamma_direct"] if g else None,
                 "bexx": finiteg_bexx(aexx, a),
             }
+        nval, vol = pbe_density(name, m)
+        qws = q_ws(nval, vol)
+        qc = {}
+        for e in ETAS:
+            p = qcloud_out(name, m, e)
+            g = parse_gaps(p) if p.exists() else None
+            qc[e] = {
+                "fund": g["fundamental"] if g else None,
+                "direct": g["gamma_direct"] if g else None,
+                "bexx": qcloud_bexx(aexx, mu, qws, e),
+                "q_cloud": e * qws,
+            }
         rows[name] = {
             "mat": m, "eps_inf": eps_inf, "mu": mu, "aexx": aexx,
+            "nval": nval, "vol": vol, "n_v": nval / vol, "q_ws": qws,
             "pbe_fund": pbe["fundamental"], "pbe_direct": pbe["gamma_direct"],
             "ddh_fund": ddh["fundamental"], "ddh_direct": ddh["gamma_direct"],
             "rs_fund": rs["fundamental"] if rs else None,
             "rs_direct": rs["gamma_direct"] if rs else None,
-            "fg": fg,
+            "fg": fg, "qc": qc,
         }
     return rows
 
 
 def model_gap(r, model, kind, fund_kind):
-    """Gap for a model on one edge. model: 'ddh', 'rs', or a finite-G `a` (float)."""
+    """Gap for a model on one edge. model: 'ddh', 'rs', a finite-G `a` (float), or a
+    qcloud key ('qc', eta)."""
     is_fund = kind == fund_kind
     if model == "ddh":
         return r["ddh_fund"] if is_fund else r["ddh_direct"]
     if model == "rs":
         return r["rs_fund"] if is_fund else r["rs_direct"]
+    if isinstance(model, tuple) and model[0] == "qc":
+        d = r["qc"][model[1]]
+        return d["fund"] if is_fund else d["direct"]
     return r["fg"][model]["fund"] if is_fund else r["fg"][model]["direct"]
 
 
@@ -223,14 +242,67 @@ def table_verdict(rows) -> str:
 
 
 def table_fgparams(rows) -> str:
-    """Material-dependent short-range endpoints B_a = 1−(1−A)·exp(−a²/4)."""
+    """Finite-G endpoints B_a = 1−(1−A)·exp(−a²/4) and the wavevector G = a·μ (bohr⁻¹)
+    at which ε⁻¹ is sampled to obtain each B_a (the short-range screening length scale)."""
     out = [
-        "| material | A = 1/ε∞ | B (a=0.5) | B (a=1.0) | B (a=2.0) |",
-        "| --- | ---: | ---: | ---: | ---: |",
+        "| material | A = 1/ε∞ | μ (bohr⁻¹) | G=0.5·μ | B (a=0.5) | G=1.0·μ | B (a=1.0) | "
+        "G=2.0·μ | B (a=2.0) |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for name, r in rows.items():
-        cells = " | ".join(f"{r['fg'][a]['bexx']:.3f}" for a in FG_AS)
-        out.append(f"| {disp(name)} | {r['aexx']:.3f} | {cells} |")
+        mu = r["mu"]
+        cells = " | ".join(f"{a * mu:.3f} | {r['fg'][a]['bexx']:.3f}" for a in FG_AS)
+        out.append(f"| {disp(name)} | {r['aexx']:.3f} | {mu:.3f} | {cells} |")
+    return "\n".join(out)
+
+
+def table_qcparams(rows) -> str:
+    """Density-scale endpoint inputs: average-valence-density wavevector q_WS and the
+    sampling wavevector q_cloud = η·q_WS (bohr⁻¹; the short-range screening length scale)
+    with the resulting B_η, for each global η."""
+    out = [
+        "| material | N_val | Ω (bohr³) | n_v (bohr⁻³) | q_WS (bohr⁻¹) | μ (bohr⁻¹) | "
+        "q_WS/μ | q_cloud η=0.5 | B (η=0.5) | q_cloud η=0.6 | B (η=0.6) | "
+        "q_cloud η=1.0 | B (η=1.0) |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | "
+        "---: | ---: |",
+    ]
+    for name, r in rows.items():
+        cells = " | ".join(
+            f"{r['qc'][e]['q_cloud']:.3f} | {r['qc'][e]['bexx']:.3f}" for e in ETAS
+        )
+        out.append(
+            f"| {disp(name)} | {r['nval']:g} | {r['vol']:.2f} | {r['n_v']:.4f} | "
+            f"{r['q_ws']:.4f} | {r['mu']:.3f} | {r['q_ws'] / r['mu']:.3f} | {cells} |"
+        )
+    return "\n".join(out)
+
+
+def table_qcloud(rows) -> str:
+    """Fourth table: density-scale qcloud results (bexx, gap, error per η) next to expt,
+    DD-RSH-CAM (β=1) and RS-DDH (β=¼). The sampling length q_cloud is in table_qcparams."""
+    hdr = "| material | gap type | expt | **DD-RSH-CAM** β=1 | RS-DDH β=¼ |"
+    sep = "| --- | --- | ---: | ---: | ---: |"
+    for e in ETAS:
+        hdr += f" qcloud η={e} bexx | qcloud η={e} gap | err η={e} |"
+        sep += " ---: | ---: | ---: |"
+    out = [hdr, sep]
+    for name, r in rows.items():
+        m = r["mat"]
+        fund_kind = "indirect" if "indirect" in m["edges"] else "direct"
+        for kind in m["edges"]:
+            exp = BENCHMARK[name]["edges"][kind]["expt"]
+            ddh = model_gap(r, "ddh", kind, fund_kind)
+            rs = model_gap(r, "rs", kind, fund_kind)
+            cells = []
+            for e in ETAS:
+                g = model_gap(r, ("qc", e), kind, fund_kind)
+                err = g - exp if (g is not None and exp is not None) else None
+                cells.append(f"{r['qc'][e]['bexx']:.3f} | {fnum(g)} | {err_fmt(err)}")
+            out.append(
+                f"| {disp(name)} | {edge_label(name, kind)} | {fnum(exp)} | "
+                f"**{fnum(ddh)}** | {fnum(rs)} | " + " | ".join(cells) + " |"
+            )
     return "\n".join(out)
 
 
@@ -261,6 +333,8 @@ def table_mae(rows) -> str:
     models = [
         ("DD-RSH-CAM (β=1)", "ddh"), ("RS-DDH (β=¼)", "rs"),
         ("finite-G a=0.5", 0.5), ("finite-G a=1.0", 1.0), ("finite-G a=2.0", 2.0),
+        ("qcloud η=0.5", ("qc", 0.5)), ("qcloud η=0.6", ("qc", 0.6)),
+        ("qcloud η=1.0", ("qc", 1.0)),
     ]
     out = [
         "| model | MAE all (eV) | MAE ionic¹ | MAE covalent² |",
@@ -328,8 +402,15 @@ def main() -> None:
         "fgparams": table_fgparams(rows),
         "finiteg": table_finiteg(rows),
         "mae": table_mae(rows),
+        "qcparams": table_qcparams(rows),
+        "qcloud": table_qcloud(rows),
     }
-    readme_tables = {"full": table_full(rows)}
+    readme_tables = {
+        "full": table_full(rows),
+        "mae": table_mae(rows),
+        "qcparams": table_qcparams(rows),
+        "qcloud": table_qcloud(rows),
+    }
     if not args.write:
         for tag, body in {**tables, **readme_tables}.items():
             print(f"\n===== {tag} =====\n{body}")

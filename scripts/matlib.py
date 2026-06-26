@@ -8,6 +8,7 @@ DD-RSH-CAM production output (with an optional per-material override).
 
 from __future__ import annotations
 
+import re
 import tomllib
 from pathlib import Path
 
@@ -52,6 +53,31 @@ def rsddh_out(name: str, mat: dict) -> Path:
 def finiteg_out(name: str, mat: dict, a: float) -> Path:
     """Finite-G model (bexx = ε⁻¹(a·μ)) hybrid output for global constant `a`."""
     return run_dir(name) / f"p2/finiteG_a{a:.1f}" / f"{mat['prefix']}.fg.out"
+
+
+def eta_tag(eta: float) -> str:
+    """Directory-safe η label: 0.5 -> '0p5', 1.0 -> '1p0'."""
+    return f"{eta:.1f}".replace(".", "p")
+
+
+def qcloud_out(name: str, mat: dict, eta: float) -> Path:
+    """Density-scale finite-q model (bexx = ε⁻¹(η·q_WS)) output for global constant η."""
+    return run_dir(name) / f"p2/qcloud_eta{eta_tag(eta)}" / f"{mat['prefix']}.qc.out"
+
+
+def pbe_density(name: str, mat: dict) -> tuple[float, float]:
+    """(N_val, cell volume in bohr³) from the PBE SCF output.
+
+    N_val is the total number of valence electrons in the cell ("number of electrons"
+    in pw.x, set by the pseudopotential z_valence); the volume is pw.x "unit-cell volume",
+    already in (a.u.)³ = bohr³.
+    """
+    text = pbe_out(name, mat).read_text()
+    vol = re.search(r"unit-cell volume\s*=\s*([\d.]+)", text)
+    nval = re.search(r"number of electrons\s*=\s*([\d.]+)", text)
+    if not vol or not nval:
+        raise SystemExit(f"could not parse N_val / volume from {pbe_out(name, mat)}")
+    return float(nval.group(1)), float(vol.group(1))
 
 
 if __name__ == "__main__":

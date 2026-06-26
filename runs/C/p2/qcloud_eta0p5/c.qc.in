@@ -1,0 +1,37 @@
+&control
+  calculation = 'scf'
+  prefix      = 'cqc'
+  outdir      = './out_qc'
+  pseudo_dir  = '../../../../pseudos'
+  verbosity   = 'high'
+  tstress     = .false.
+  tprnfor     = .false.
+/
+&system
+  ibrav       = 2
+  celldm(1)   = 6.741   ! a = 3.567 A (experimental)
+  nat         = 2
+  ntyp        = 1
+  ecutwfc     = 80.0
+  ecutrho     = 320.0
+  occupations = 'fixed'
+  nbnd        = 12
+  input_dft        = 'hse'
+  lmodelhf         = .true.
+  aexx             = 0.1850
+  bexx             = 0.2204
+  hfscreen         = 0.9006
+  exxdiv_treatment = 'gygi-baldereschi'
+  nqx1 = 6, nqx2 = 6, nqx3 = 6
+/
+&electrons
+  conv_thr    = 1.0d-8
+  mixing_beta = 0.7
+/
+ATOMIC_SPECIES
+C     12.011  C_ONCV_PBE-1.2.upf
+ATOMIC_POSITIONS crystal
+C     0.0   0.0   0.0
+C    0.25  0.25  0.25
+K_POINTS automatic
+6 6 6 0 0 0
