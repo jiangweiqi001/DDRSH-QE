@@ -65,6 +65,16 @@ def qcloud_out(name: str, mat: dict, eta: float) -> Path:
     return run_dir(name) / f"p2/qcloud_eta{eta_tag(eta)}" / f"{mat['prefix']}.qc.out"
 
 
+def kappa_tag(kappa: float) -> str:
+    """Directory-safe κ label: 0.25 -> '0p25', 0.50 -> '0p50'."""
+    return f"{kappa:.2f}".replace(".", "p")
+
+
+def qpeak_out(name: str, mat: dict, kappa: float) -> Path:
+    """Density-peak log-curvature model (bexx = ε⁻¹(κ/σ_peak)) output for global κ."""
+    return run_dir(name) / f"p2/qpeak_kappa{kappa_tag(kappa)}" / f"{mat['prefix']}.qp.out"
+
+
 def pbe_density(name: str, mat: dict) -> tuple[float, float]:
     """(N_val, cell volume in bohr³) from the PBE SCF output.
 

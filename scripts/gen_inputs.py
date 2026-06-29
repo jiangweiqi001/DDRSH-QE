@@ -20,7 +20,7 @@ import argparse
 import math
 from pathlib import Path
 
-from matlib import ROOT, eta_tag, load_materials, pbe_density
+from matlib import ROOT, eta_tag, kappa_tag, load_materials, pbe_density
 
 BOHR = 0.529177210903
 
@@ -195,13 +195,28 @@ def qcloud_input(mat: dict, name: str, aexx: str, hfscreen: str, eta: float) -> 
     return hybrid_input(mat, f"{float(aexx):.4f}", hfscreen, f"{bexx:.4f}", "qc", "./out_qc")
 
 
+def qpeak_input(mat: dict, name: str, aexx: str, hfscreen: str, kappa: float) -> str:
+    """Density-peak log-curvature finite-q model: short-range endpoint bexx = ε⁻¹(κ/σ_peak),
+    with σ_peak from the log-curvature of the PBE valence-density peak of the active species."""
+    from qpeak import ACTIVE_SPECIES, qpeak_bexx, species_sigma
+    sp = ACTIVE_SPECIES[name]
+    fit = species_sigma(name, mat["prefix"]).get(sp)
+    if fit is None or fit["sigma"] is None:
+        raise SystemExit(f"qpeak σ_peak fit failed for {name}/{sp}: "
+                         f"{fit['status'] if fit else 'species missing'}")
+    _q, bexx = qpeak_bexx(float(aexx), float(hfscreen), fit["sigma"], kappa)
+    return hybrid_input(mat, f"{float(aexx):.4f}", hfscreen, f"{bexx:.4f}", "qp", "./out_qp")
+
+
 def _dest(name: str, mat: dict, which: str, a: float | None = None,
-          eta: float | None = None) -> Path:
+          eta: float | None = None, kappa: float | None = None) -> Path:
     p = mat["prefix"]
     if which == "finiteg":
         return ROOT / "runs" / name / "p2" / f"finiteG_a{a:.1f}" / f"{p}.fg.in"
     if which == "qcloud":
         return ROOT / "runs" / name / "p2" / f"qcloud_eta{eta_tag(eta)}" / f"{p}.qc.in"
+    if which == "qpeak":
+        return ROOT / "runs" / name / "p2" / f"qpeak_kappa{kappa_tag(kappa)}" / f"{p}.qp.in"
     return {
         "pbe": ROOT / "runs" / name / "01-pbe-scf" / f"{p}.scf.in",
         "eels": ROOT / "runs" / name / "p2" / "eels" / f"{p}.scf.in",
@@ -214,7 +229,8 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("material")
     ap.add_argument("--which",
-                    choices=["pbe", "eels", "ddrshcam", "rsddh", "finiteg", "qcloud", "all"],
+                    choices=["pbe", "eels", "ddrshcam", "rsddh", "finiteg", "qcloud",
+                             "qpeak", "all"],
                     default="all")
     ap.add_argument("--aexx", default="AEXX_PLACEHOLDER")
     ap.add_argument("--hfscreen", default="HFSCREEN_PLACEHOLDER")
@@ -224,6 +240,8 @@ def main() -> None:
                     help="finite-G constant a (B_a = 1-(1-A)exp(-a^2/4)); required for finiteg")
     ap.add_argument("--eta", type=float, default=None,
                     help="density-scale constant η (q_cloud = η·q_WS); required for qcloud")
+    ap.add_argument("--kappa", type=float, default=None,
+                    help="density-peak constant κ (q_peak = κ/σ_peak); required for qpeak")
     ap.add_argument("--stdout", action="store_true", help="print instead of writing files")
     args = ap.parse_args()
 
@@ -236,6 +254,8 @@ def main() -> None:
         ap.error("--which finiteg requires --a")
     if args.which == "qcloud" and args.eta is None:
         ap.error("--which qcloud requires --eta")
+    if args.which == "qpeak" and args.kappa is None:
+        ap.error("--which qpeak requires --kappa")
 
     builders = {
         "pbe": lambda: pbe_input(mat),
@@ -244,6 +264,7 @@ def main() -> None:
         "rsddh": lambda: rsddh_input(mat, args.aexx, args.hfscreen, args.bexx or "0.25"),
         "finiteg": lambda: finiteg_input(mat, args.aexx, args.hfscreen, args.a),
         "qcloud": lambda: qcloud_input(mat, args.material, args.aexx, args.hfscreen, args.eta),
+        "qpeak": lambda: qpeak_input(mat, args.material, args.aexx, args.hfscreen, args.kappa),
     }
     which = ["pbe", "eels", "ddrshcam"] if args.which == "all" else [args.which]
     for w in which:
@@ -251,7 +272,7 @@ def main() -> None:
         if args.stdout:
             print(f"===== {w} =====\n{content}")
             continue
-        dest = _dest(args.material, mat, w, args.a, args.eta)
+        dest = _dest(args.material, mat, w, args.a, args.eta, args.kappa)
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(content)
         print(f"wrote {dest.relative_to(ROOT)}")

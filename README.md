@@ -294,6 +294,45 @@ All 24 runs (8 materials × `η = 0.5, 0.6, 1.0`) completed — no failures.
   a ≈ η, and inherits the same limitation (`B_η` rises with 1/ε∞, the wrong direction), so
   tying the length to the valence density adds no discriminating power here.
 
+### Density-peak log-curvature finite-q endpoint (fifth class)
+
+The qcloud length `q_WS` is a *cell-average* scale and turned out ≈ μ, so qcloud collapsed
+onto finite-G. This class instead uses a **local** electron-cloud scale: the width of the PBE
+valence-density peak around the atom. For each species `s`, the PBE valence density is
+spherically averaged about its atoms, `ρ̄_s(r)` (done exactly in G-space:
+`ρ̄_s(r) = Σ_G ρ(G)·⟨e^{iG·τ}⟩_s·j₀(|G|r)`), and the log of the peak is fitted to a parabola:
+
+```text
+ln ρ̄_s(r) ≈ c₀ + c₁(r−r₀) + c₂(r−r₀)²      (window ρ̄ > 0.8·ρ̄(r₀), relaxed to 0.7 if sparse)
+σ_peak    = sqrt(−1/(2 c₂))                  (requires c₂ < 0, σ_peak > 0; R² reported)
+q_peak    = κ / σ_peak
+B_κ       = ε⁻¹(q_peak) = 1 − (1 − A)·exp[ −q_peak² / (4 μ²) ],   A = 1/ε∞,  μ = hfscreen
+```
+
+- **`κ` is a fixed global parameter.** It is **not** fitted per material, and **not** fitted to
+  experimental gaps. Three global values are tested: `κ = 0.25, 0.35, 0.50`.
+- **The active species is fixed before the benchmark** (whose σ_peak sets `B_κ`):
+  Si→Si, C→C, AlAs→As, MgO→O, LiCl/NaCl→Cl, CaF₂/LiF→F (anion / VBM-localised; Si, C are the
+  single-element covalents). `σ_peak` is still reported for *every* species as a diagnostic.
+- The endpoint diagnostic (**no QE**) is `scripts/diag_qpeak_logcurv.py`
+  (→ `results/qpeak_logcurv_endpoint.{csv,md}`, `qpeak_logcurv_all_species.{csv,md}`); the
+  optional driver is `scripts/run_density_qpeak.sh <Material> <κ>` (output in
+  `runs/<M>/p2/qpeak_kappa<κ>/`, leaving β=1 / β=¼ / finite-G / qcloud untouched). All fits
+  succeed (R² = 0.86–1.00) and every material/κ satisfies `A ≤ B_κ ≤ 1`.
+
+**Diagnostic verdict (why a full QE benchmark is *not* recommended).** Unlike `q_WS/μ ≈ 1`,
+the local peak gives a real spread `q_peak/μ ≈ 0.48–2.34`, but in the **wrong direction**: the
+anions of the strongly-ionic oxides/fluorides have the *most localised* valence peaks
+(`σ_peak ≈ 0.30 bohr` for O/F vs 0.46–0.79 bohr for C/As/Cl/Si), so they get the *largest*
+`q_peak` and hence the *highest* `B_κ` — i.e. the most short-range Fock is handed to exactly
+the materials that already over-open. At κ=0.25 the ionic endpoints (`B`: MgO 0.51, CaF₂ 0.60,
+LiF 0.63) sit well above finite-G a=0.5 / qcloud η=0.5 (0.36–0.52), and no single κ can raise
+covalent `B` (which needs more Fock) without raising ionic `B` further. A single confirmation
+run bears this out: **MgO κ=0.25 → 8.24 eV (+0.41)**, *worse* than RS-DDH β=¼ (+0.26) and
+finite-G a=0.5 / qcloud η=0.5 (+0.33). The model is therefore expected to under-perform β=¼;
+the run script, `gen_inputs` builder and `results/benchmark_qpeak_logcurv.{csv,md}` (with the
+MgO point populated) are in place to run the full set on request.
+
 ## Directory layout
 
 ```text
@@ -306,7 +345,8 @@ runs/MgO/p2/ddrshcam/         strict DD-RSH-CAM production (mgo.nqx6.in)
 runs/MgO/p2/audit/            convergence audit inputs + run scripts
 runs/MgO/01-pbe-scf .. 04-dd-hse   earlier PBE / DDH / approximate-DD-HSE runs
 runs/Si/ runs/C/ runs/AlAs/ runs/LiCl/ runs/NaCl/ runs/CaF2/ runs/LiF/
-              PBE, eels, ddrshcam, rsddh, finiteG_a* (finite-G), qcloud_eta* (density-scale)
+              PBE, eels, ddrshcam, rsddh, finiteG_a* (finite-G), qcloud_eta* (density-scale),
+              qpeak_kappa* (density-peak log-curvature)
 pseudos/                      SG15 ONCV PBE norm-conserving pseudopotentials
 results/                      MgO-results.md, Si-results.md, EFT-ARPES-bench-comparison.md
 docs/                         implementation plan
@@ -330,9 +370,19 @@ Benchmark pipeline (driven by `config/materials.toml`, no hand-edited inputs):
   `runs/<M>/p2/qcloud_eta<η>/`.
 - `scripts/diag_qcloud.py` — endpoint diagnostic for the density-scale model (no QE):
   prints N_val, Ω, q_WS, q_cloud, B_η for all materials/η and checks `A ≤ B_η ≤ 1`.
-- `scripts/gen_inputs.py <Material> [--which rsddh|finiteg --a A|qcloud --eta E] [--bexx B]`
+- `scripts/run_density_qpeak.sh <Material> <κ>` — **density-peak log-curvature driver**:
+  reuses the fit + PBE valence density, computes `B_κ = ε⁻¹(κ/σ_peak)`, re-runs the hybrid
+  SCF; writes to `runs/<M>/p2/qpeak_kappa<κ>/`.
+- `scripts/diag_qpeak_logcurv.py` — endpoint diagnostic for the density-peak model (no QE):
+  per-species σ_peak from the PBE valence density, `B_κ` for the fixed active species, checks
+  `A ≤ B_κ ≤ 1` → `results/qpeak_logcurv_endpoint.{csv,md}`, `qpeak_logcurv_all_species.{csv,md}`.
+- `scripts/qpeak.py` — shared core: G-space charge-density parser, exact spherical average,
+  log-curvature σ_peak fit, `B_κ`, and the fixed `ACTIVE_SPECIES` map.
+- `scripts/write_qpeak_benchmark.py` — optional `results/benchmark_qpeak_logcurv.{csv,md}`
+  from whatever qpeak runs exist (gaps + signed error; MAE uses |error|).
+- `scripts/gen_inputs.py <Material> [--which rsddh|finiteg --a A|qcloud --eta E|qpeak --kappa K] [--bexx B]`
   — generate QE inputs from `materials.toml` (short-range Fock `bexx`: 1.0 for ddrshcam,
-  0.25 for rsddh, `B_a` for finiteg, `B_η` for qcloud).
+  0.25 for rsddh, `B_a` for finiteg, `B_η` for qcloud, `B_κ` for qpeak).
 - `scripts/scan_eps_q.sh <prefix> <alat_bohr> <eels_dir>` — generic turboEELS ε⁻¹(q) scan.
 - `scripts/fit_mu.py <eps_q.dat>` — fit ε∞ and μ (parabolic-refined, numpy only).
 - `scripts/extract_gap.py <pw.out>` — fundamental + Γ-direct gap from a pw.x output.
