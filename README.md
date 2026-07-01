@@ -333,6 +333,88 @@ finite-G a=0.5 / qcloud η=0.5 (+0.33). The model is therefore expected to under
 the run script, `gen_inputs` builder and `results/benchmark_qpeak_logcurv.{csv,md}` (with the
 MgO point populated) are in place to run the full set on request.
 
+### Density-peak range-separation (sixth class)
+
+**Motivation.** The previous three families (finite-G, qcloud, qpeak) all move the *short-range
+Fock endpoint* `B = ε⁻¹(q)`. But that endpoint is bounded below by `B ≥ A = 1/ε∞` and *rises*
+with A, so it hands the most short-range Fock to the most ionic crystals — the wrong direction,
+since those over-open. This class drops that idea entirely: it keeps the **short-range Fock
+fixed at 1 (DD-RSH-CAM β=1)** and instead moves the **range-separation length μ**, using the
+same local density scale:
+
+```text
+μ_eff = c / σ_peak       (σ_peak = log-curvature width of the active species' PBE valence
+                          density peak; c is a single GLOBAL constant — not per material,
+                          not gap-fitted. Active species = qpeak.ACTIVE_SPECIES.)
+input_dft='hse', lmodelhf=.true., aexx = A = 1/ε∞, bexx = 1.0, hfscreen = μ_eff
+```
+
+In the β=1 model the gap **decreases** with μ (`μ→0 ⇒ α≡1` full Fock; `μ→∞ ⇒ α≡A` global
+hybrid). The ionic anions (O/F) have the *most localised* peaks (σ_peak ≈ 0.30 bohr) ⇒ the
+*largest* μ_eff ⇒ the *biggest* gap reduction — finally the **same direction** as the β=1
+over-opening. Three global constants are tested: `c = 0.45, 0.55, 0.65`. Driver:
+`scripts/run_density_mu.sh <Material> <c>` → `runs/<M>/p2/densmu_c<c>/` (β=1 / β=¼ / finite-G /
+qcloud / qpeak runs are left untouched); diagnostic `scripts/diag_density_mu.py` prints μ_eff
+without QE.
+
+**Result (all 8 materials).** The complete benchmark — these three c next to every previously
+computed model and the literature — is below.
+
+<!-- BEGIN:densmu -->
+| material | gap type | PBE | DD-RSH-CAM β=1 | RS-DDH β=¼ | finite-G a=0.5 | qcloud η=0.5 | qpeak κ=0.25 | density-μ c=0.45 gap | density-μ c=0.45 err | density-μ c=0.55 gap | density-μ c=0.55 err | density-μ c=0.65 gap | density-μ c=0.65 err | expt | G₀W₀ | HSE06 | PBE0 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Si | indirect | 0.60 | 1.27 | 1.15 | 1.13 | 1.13 | — | 1.34 | +0.17 | 1.25 | +0.08 | 1.20 | +0.03 | 1.17 | 1.29 | 1.16 | 1.97 |
+| Si | direct Γ→Γ | 2.56 | 3.28 | 3.09 | 3.07 | 3.06 | — | 3.39 | −0.01 | 3.25 | −0.15 | 3.17 | −0.23 | 3.40 | 3.35 | 3.32 | 3.96 |
+| C (diamond) | indirect | 4.18 | 5.67 | 5.60 | 5.59 | 5.59 | — | 5.63 | +0.15 | 5.59 | +0.11 | 5.57 | +0.09 | 5.48 | 5.5 | 5.42 | 6.66 |
+| C (diamond) | direct Γ→Γ | 5.60 | 7.50 | 7.18 | 7.17 | 7.17 | — | 7.43 | +0.13 | 7.30 | +0.00 | 7.24 | −0.06 | 7.30 | 7.5 | 7.04 | 8.4 |
+| AlAs | indirect Γ→X | 1.43 | 2.19 | 2.05 | 2.04 | 2.04 | — | 2.16 | −0.07 | 2.10 | −0.13 | 2.07 | −0.16 | 2.23 | 2.18 | 2.04 | 2.86 |
+| AlAs | direct Γ→Γ | 2.04 | 2.86 | 2.71 | 2.70 | 2.70 | — | 2.82 | −0.31 | 2.73 | −0.40 | 2.69 | −0.44 | 3.13 | 2.88 | 2.97 | 3.86 |
+| MgO | direct Γ→Γ | 4.95 | 8.55 | 8.09 | 8.16 | 8.16 | 8.24 | 8.04 | +0.21 | 8.05 | +0.22 | 8.07 | +0.24 | 7.83 | 7.69 | 6.51 | 7.23 |
+| LiCl | direct Γ→Γ | 6.43 | 9.61 | 9.16 | 9.24 | 9.23 | — | 9.40 | +0.00 | 9.30 | −0.10 | 9.25 | −0.15 | 9.40 | 9.1 | 7.8 | 9.0 |
+| NaCl | direct Γ→Γ | 5.21 | 8.88 | 8.36 | 8.49 | 8.49 | — | 8.63 | −0.34 | 8.53 | −0.44 | 8.49 | −0.48 | 8.97 | 8.7 | 6.56 | 8.5 |
+| CaF₂ | indirect W→Γ | 7.33 | 13.15 | 12.03 | 12.36 | 12.36 | — | 12.37 | +0.57 | 12.33 | +0.53 | 12.31 | +0.51 | 11.80 | ~11.4 | ~10.4 | ~11.0 |
+| CaF₂ | direct Γ→Γ | 7.59 | 13.42 | 12.31 | 12.64 | 12.64 | — | 12.65 | +0.55 | 12.60 | +0.50 | 12.59 | +0.49 | 12.10 | ~11.8 | — | — |
+| LiF | direct Γ→Γ | 9.15 | 15.90 | 14.76 | 15.16 | 15.16 | — | 15.16 | +0.96 | 15.12 | +0.92 | 15.11 | +0.91 | 14.20 | 14.3 | 11.5 | 14.7 |
+<!-- END:densmu -->
+
+Screening inputs (μ_eff = c/σ_peak, bohr⁻¹):
+
+<!-- BEGIN:densmu_params -->
+| material | active sp. | A=1/ε∞ | μ_fit | μ_eff (c=0.45) | μ_eff (c=0.55) | μ_eff (c=0.65) |
+| --- | --- | --- | --- | --- | --- | --- |
+| Si | Si | 0.091 | 0.657 | 0.569 | 0.695 | 0.821 |
+| C (diamond) | C | 0.185 | 0.901 | 0.981 | 1.199 | 1.417 |
+| AlAs | As | 0.125 | 0.605 | 0.651 | 0.796 | 0.941 |
+| MgO | O | 0.323 | 0.726 | 1.497 | 1.829 | 2.162 |
+| LiCl | Cl | 0.337 | 0.633 | 0.795 | 0.971 | 1.148 |
+| NaCl | Cl | 0.395 | 0.594 | 0.795 | 0.971 | 1.148 |
+| CaF₂ | F | 0.443 | 0.714 | 1.499 | 1.832 | 2.166 |
+| LiF | F | 0.490 | 0.725 | 1.502 | 1.836 | 2.170 |
+<!-- END:densmu_params -->
+
+MAE (|signed error|, eV) over all listed edges:
+
+<!-- BEGIN:densmu_mae -->
+| model | MAE all (eV) | MAE ionic¹ | MAE covalent² |
+| --- | --- | --- | --- |
+| density-μ c=0.45 | 0.290 | 0.572 | 0.142 |
+| density-μ c=0.55 | 0.298 | 0.543 | 0.145 |
+| density-μ c=0.65 | 0.316 | 0.538 | 0.168 |
+<!-- END:densmu_mae -->
+
+**Verdict.** The direction is finally correct and it strongly relieves the β=1 over-opening for
+the covalent set and MgO (MgO +0.72 → +0.21, Si tuned to +0.08). In fact **density-μ c=0.45 has
+the lowest covalent MAE of any model here (0.142 eV vs β=¼ 0.193, β=1 0.153)** and the second
+lowest overall MAE (0.290 eV, behind only β=¼ 0.272 and well ahead of finite-G / qcloud 0.355).
+But it hits a **hard floor**: the `μ→∞` limit is the `α = 1/ε∞` global hybrid, and for the
+high-A fluorides (LiF A=0.49, CaF₂ A=0.44) that floor still lies above experiment (LiF saturates
+near +0.9, ionic MAE 0.54–0.57), so raising μ cannot fix them. RS-DDH β=¼ wins there precisely
+because its short-range fraction 0.25 < A *punches through* that floor (ionic MAE 0.315). Net:
+density-μ matches/edges β=¼ on covalent + MgO but loses on the strong fluorides, so **β=¼ remains
+the best single overall model** — density-μ is the strongest of the β=1 family and maps the same
+boundary from the other side (μ instead of B). Larger c barely helps ionic (floor) while slowly
+hurting covalent, so **c ≈ 0.45 is the best global choice**.
+
 ## Directory layout
 
 ```text
@@ -380,6 +462,13 @@ Benchmark pipeline (driven by `config/materials.toml`, no hand-edited inputs):
   log-curvature σ_peak fit, `B_κ`, and the fixed `ACTIVE_SPECIES` map.
 - `scripts/write_qpeak_benchmark.py` — optional `results/benchmark_qpeak_logcurv.{csv,md}`
   from whatever qpeak runs exist (gaps + signed error; MAE uses |error|).
+- `scripts/run_density_mu.sh <Material> <c>` — **density-peak range-separation driver** (β=1,
+  μ_eff = c/σ_peak): reuses A and σ_peak, re-runs the hybrid SCF; writes to
+  `runs/<M>/p2/densmu_c<c>/`.
+- `scripts/diag_density_mu.py` — prints μ_eff = c/σ_peak vs the fitted μ and the β=1 error for
+  all materials (no QE), to pick c.
+- `scripts/write_densitymu_benchmark.py [--write]` — `results/benchmark_densitymu.{csv,md}`
+  (3 c next to all prior models); `--write` splices the tables into README.
 - `scripts/gen_inputs.py <Material> [--which rsddh|finiteg --a A|qcloud --eta E|qpeak --kappa K] [--bexx B]`
   — generate QE inputs from `materials.toml` (short-range Fock `bexx`: 1.0 for ddrshcam,
   0.25 for rsddh, `B_a` for finiteg, `B_η` for qcloud, `B_κ` for qpeak).

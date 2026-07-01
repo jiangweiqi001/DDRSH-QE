@@ -48,3 +48,6 @@ __pycache__/
 .DS_Store
 *.swp
 input_tmp.in
+
+# density-mu benchmark scratch driver/logs
+runs/_densmu_logs/

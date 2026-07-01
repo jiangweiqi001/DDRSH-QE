@@ -75,6 +75,11 @@ def qpeak_out(name: str, mat: dict, kappa: float) -> Path:
     return run_dir(name) / f"p2/qpeak_kappa{kappa_tag(kappa)}" / f"{mat['prefix']}.qp.out"
 
 
+def densmu_out(name: str, mat: dict, c: float) -> Path:
+    """Density-peak range-separation model (β=1, μ_eff = c/σ_peak) output for global c."""
+    return run_dir(name) / f"p2/densmu_c{kappa_tag(c)}" / f"{mat['prefix']}.dm.out"
+
+
 def pbe_density(name: str, mat: dict) -> tuple[float, float]:
     """(N_val, cell volume in bohr³) from the PBE SCF output.
 

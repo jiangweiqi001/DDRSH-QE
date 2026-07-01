@@ -1,0 +1,40 @@
+&control
+  calculation = 'scf'
+  prefix      = 'caf26'
+  outdir      = './out6'
+  pseudo_dir  = '../../../../pseudos'
+  verbosity   = 'high'
+  tstress     = .false.
+  tprnfor     = .false.
+/
+&system
+  ibrav       = 2
+  celldm(1)   = 10.323   ! a = 5.463 A (experimental)
+  nat         = 3
+  ntyp        = 2
+  ecutwfc     = 80.0
+  ecutrho     = 320.0
+  occupations = 'fixed'
+  nbnd        = 20
+  input_dft        = 'hse'
+  lmodelhf         = .true.
+  aexx             = 0.4435
+  bexx             = 1.0
+  hfscreen         = 1.8324
+  exxdiv_treatment = 'gygi-baldereschi'
+  nqx1 = 6, nqx2 = 6, nqx3 = 6
+/
+&electrons
+  conv_thr    = 1.0d-8
+  mixing_beta = 0.7
+/
+ATOMIC_SPECIES
+Ca    40.078  Ca_ONCV_PBE-1.2.upf
+F     18.998  F_ONCV_PBE-1.2.upf
+ATOMIC_POSITIONS crystal
+Ca    0.0   0.0   0.0
+F    0.25  0.25  0.25
+F    0.75  0.75  0.75
+K_POINTS automatic
+6 6 6 0 0 0
+
