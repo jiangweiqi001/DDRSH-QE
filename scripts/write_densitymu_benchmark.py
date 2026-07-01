@@ -33,7 +33,7 @@ from write_comparison import (  # noqa: E402
 
 RESULTS = ROOT / "results"
 APPROX_REF = {"CaF2"}
-CS = (0.45, 0.55, 0.65)
+CS = (0.45, 0.50, 0.55, 0.65)
 IONIC, COVAL = {"MgO", "CaF2", "LiF"}, {"Si", "C", "AlAs"}
 
 
